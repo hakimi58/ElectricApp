@@ -1,31 +1,34 @@
- import streamlit as st
-import google.generativeai as genai
-
-# إعداد الصفحة
-st.set_page_config(page_title="Tunisia Electric", page_icon="⚡")
-st.title("⚡ خبير الكهرباء التونسي")
-
-# جلب المفتاح السري
-API_KEY = st.secrets.get("GOOGLE_API_KEY")
-
-if API_KEY:
+ 
+# --- دالة جلب الموديل المطورة لتجنب خطأ 404 ---
+@st.cache_resource
+def load_model():
+    # قائمة بجميع الأسماء المحتملة للموديل حسب تحديثات جوجل
+    potential_names = [
+        'models/gemini-1.5-flash-latest', 
+        'models/gemini-1.5-flash', 
+        'gemini-1.5-flash',
+        'models/gemini-pro'
+    ]
+    
+    for name in potential_names:
+        try:
+            m = genai.GenerativeModel(name)
+            # تجربة فحص سريعة جداً للتأكد أن الموديل شغال
+            m.generate_content("hi", generation_config={"max_output_tokens": 1})
+            return m
+        except Exception:
+            # إذا فشل هذا الاسم، ينتقل للاسم الذي يليه في القائمة
+            continue
+    
+    # محاولة أخيرة: البحث في قائمة الموديلات المتاحة في حسابك فعلياً
     try:
-        genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-    except Exception as e:
-        st.error(f"خطأ في الإعدادات: {e}")
-else:
-    st.warning("⚠️ يرجى إضافة المفتاح في Secrets")
-    st.stop()
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                return genai.GenerativeModel(m.name)
+    except:
+        pass
+    
+    return None
 
-query = st.text_input("اسأل خبيرك التقني:")
-
-if st.button("إجابة"):
-    if query:
-        with st.spinner('👷 جاري الاتصال بالخبير...'):
-            try:
-                response = model.generate_content(query)
-                st.markdown("---")
-                st.success(response.text)
-            except Exception as e:
-                st.error(f"حدث خطأ أثناء جلب الإجابة: {e}")
+# استدعاء الموديل
+model = load_model()
