@@ -13,7 +13,7 @@ if not api_key:
 genai.configure(api_key=api_key)
 
 # 4. تشغيل النموذج
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 try:
     response = model.generate_content("أهلاً، أنا مبرمج أستخدم GitHub Secrets الآن!")
