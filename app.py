@@ -2,57 +2,64 @@
 import google.generativeai as genai
 
 # 1. إعدادات مظهر التطبيق ليكون مثل تطبيقات الهاتف
-st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡")
+st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡", layout="centered")
 
-# تصميم احترافي بـ CSS
+# تصميم احترافي
 st.markdown("""
-    <style>
+<style>
     .stApp { background-color: #f8f9fa; }
-    .main-title { color: #e67e22; text-align: center; font-size: 28px; font-weight: bold; }
-    .stButton>button { width: 100%; border-radius: 10px; background-color: #e67e22; color: white; }
-    </style>
-    """, unsafe_allow_html=True)
+    .main-title { color: #e67e22; text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 20px; }
+    .stButton>button { width: 100%; border-radius: 12px; background-color: #e67e22; color: white; height: 3em; font-size: 18px; }
+    .stSelectbox { border-radius: 10px; }
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown('<p class="main-title">⚡ خبير الكهرباء التونسي Pro</p>', unsafe_allow_html=True)
 
-# 2. القائمة الجانبية (Navigation)
-menu = st.sidebar.selectbox("القائمة الرئيسية", ["الذكاء الاصطناعي", "حاسبة الأحمال", "دليل الألوان"])
+# 2. القائمة الجانبية للتنقل
+st.sidebar.header("⚙️ الإعدادات")
+menu = st.sidebar.radio("انتقل إلى:", ["🤖 استشارة الذكاء الاصطناعي", "🧮 حاسبة الأحمال", "🎨 دليل ألوان الأسلاك"])
 
 # جلب المفتاح السري
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
 # --- القسم الأول: الذكاء الاصطناعي ---
-if menu == "الذكاء الاصطناعي":
-    st.info("🤖 اسأل الخبير عن أي عطل أو طريقة ربط")
+if menu == "🤖 استشارة الذكاء الاصطناعي":
+    st.info("مرحباً بك! أنا مساعدك الذكي، اسألني عن أي عطل أو مخطط كهربائي.")
     if API_KEY:
-        genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        user_input = st.chat_input("اكتب سؤالك هنا (مثلاً: ربط محرك 380v)")
-        if user_input:
-            with st.chat_message("user"): st.write(user_input)
-            with st.spinner("جاري التحليل..."):
-                res = model.generate_content(f"أنت خبير كهرباء تونسي. أجب بدقة: {user_input}")
-                with st.chat_message("assistant"): st.write(res.text)
+        try:
+            genai.configure(api_key=API_KEY)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            user_input = st.chat_input("اكتب سؤالك هنا (مثلاً: كيفية ربط دجونكتير)...")
+            if user_input:
+                with st.chat_message("user"): st.write(user_input)
+                with st.spinner("جاري التفكير..."):
+                    res = model.generate_content(f"أنت خبير كهرباء تونسي محترف. أجب بوضوح: {user_input}")
+                    with st.chat_message("assistant"): st.write(res.text)
+        except Exception as e:
+            st.error(f"حدث خطأ في الاتصال: {e}")
     else:
-        st.error("المفتاح السري ناقص!")
+        st.warning("⚠️ يرجى إضافة GOOGLE_API_KEY في إعدادات Secrets")
 
 # --- القسم الثاني: حاسبة الأحمال ---
-elif menu == "حاسبة الأحمال":
-    st.subheader("🧮 حاسبة قانون أوم والقدرة")
+elif menu == "🧮 حاسبة الأحمال":
+    st.subheader("💡 حساب القدرة الكهربائية")
     col1, col2 = st.columns(2)
     with col1:
-        v = st.number_input("الجهد (Volt)", value=220)
-        i = st.number_input("التيار (Amper)", value=10)
+        v = st.number_input("الجهد (ولت - Volt)", value=220)
     with col2:
-        power = v * i
-        st.metric("القدرة (Watt)", f"{power} W")
-    st.help("استخدم هذه الحاسبة لتحديد سلك القاطع المناسب.")
+        i = st.number_input("التيار (أمبير - Ampere)", value=10)
+    
+    power = v * i
+    st.metric("القدرة الإجمالية", f"{power} واط (Watt)")
+    st.success(f"تحتاج إلى سلك بقطر مناسب لـ {i} أمبير.")
 
 # --- القسم الثالث: دليل الألوان ---
-elif menu == "دليل الألوان":
-    st.subheader("🎨 دليل ألوان الأسلاك (تونس/أوروبا)")
+elif menu == "🎨 دليل ألوان الأسلاك":
+    st.subheader("📋 المعايير المعتمدة في تونس")
     st.table({
-        "السلك": ["الطور (Phase)", "المحايد (Neutre)", "الأرضي (Terre)"],
-        "اللون": ["بني أو أسود (Marron/Noir)", "أزرق (Bleu)", "أخضر/أصفر (Vert/Jaune)"]
+        "نوع السلك": ["الطور (Phase)", "المحايد (Neutre)", "الأرضي (Terre)"],
+        "اللون المتفق عليه": ["بني أو أسود", "أزرق سماوي", "أخضر مع أصفر"]
     })
+    st.warning("تنبيه: دائماً تأكد من قطع التيار قبل فحص الأسلاك!")
