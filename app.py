@@ -1,65 +1,53 @@
-  import streamlit as st
+import streamlit as st
 import google.generativeai as genai
 
-# 1. إعدادات مظهر التطبيق ليكون مثل تطبيقات الهاتف
+# إعداد الصفحة لتناسب شكل تطبيقات الهاتف
 st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡", layout="centered")
 
-# تصميم احترافي
+# إضافة لمسات جمالية (CSS)
 st.markdown("""
 <style>
     .stApp { background-color: #f8f9fa; }
-    .main-title { color: #e67e22; text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 20px; }
-    .stButton>button { width: 100%; border-radius: 12px; background-color: #e67e22; color: white; height: 3em; font-size: 18px; }
-    .stSelectbox { border-radius: 10px; }
+    .main-title { color: #e67e22; text-align: center; font-size: 26px; font-weight: bold; }
+    .stButton>button { width: 100%; border-radius: 12px; background-color: #e67e22; color: white; height: 3em; }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<p class="main-title">⚡ خبير الكهرباء التونسي Pro</p>', unsafe_allow_html=True)
 
-# 2. القائمة الجانبية للتنقل
-st.sidebar.header("⚙️ الإعدادات")
-menu = st.sidebar.radio("انتقل إلى:", ["🤖 استشارة الذكاء الاصطناعي", "🧮 حاسبة الأحمال", "🎨 دليل ألوان الأسلاك"])
+# القائمة الجانبية للتنقل (مثل التطبيقات الحقيقية)
+st.sidebar.header("⚙️ القائمة")
+menu = st.sidebar.radio("اختر الوظيفة:", ["🤖 استشارة الذكاء الاصطناعي", "🧮 حاسبة الأحمال", "🎨 دليل الألوان"])
 
-# جلب المفتاح السري
-API_KEY = st.secrets.get("GOOGLE_API_KEY")
+# جلب المفتاح من Secrets
+api_key = st.secrets.get("GOOGLE_API_KEY")
 
-# --- القسم الأول: الذكاء الاصطناعي ---
 if menu == "🤖 استشارة الذكاء الاصطناعي":
-    st.info("مرحباً بك! أنا مساعدك الذكي، اسألني عن أي عطل أو مخطط كهربائي.")
-    if API_KEY:
+    st.info("مرحباً بك! اسألني عن أي مشكل كهربائي.")
+    if api_key:
         try:
-            genai.configure(api_key=API_KEY)
+            genai.configure(api_key=api_key)
             model = genai.GenerativeModel('gemini-1.5-flash')
-            
-            user_input = st.chat_input("اكتب سؤالك هنا (مثلاً: كيفية ربط دجونكتير)...")
+            user_input = st.chat_input("اكتب سؤالك هنا...")
             if user_input:
                 with st.chat_message("user"): st.write(user_input)
                 with st.spinner("جاري التفكير..."):
-                    res = model.generate_content(f"أنت خبير كهرباء تونسي محترف. أجب بوضوح: {user_input}")
+                    res = model.generate_content(f"أنت خبير كهرباء تونسي محترف: {user_input}")
                     with st.chat_message("assistant"): st.write(res.text)
         except Exception as e:
-            st.error(f"حدث خطأ في الاتصال: {e}")
+            st.error(f"خطأ: {e}")
     else:
-        st.warning("⚠️ يرجى إضافة GOOGLE_API_KEY في إعدادات Secrets")
+        st.warning("⚠️ يرجى إضافة المفتاح السري في إعدادات Streamlit")
 
-# --- القسم الثاني: حاسبة الأحمال ---
 elif menu == "🧮 حاسبة الأحمال":
-    st.subheader("💡 حساب القدرة الكهربائية")
-    col1, col2 = st.columns(2)
-    with col1:
-        v = st.number_input("الجهد (ولت - Volt)", value=220)
-    with col2:
-        i = st.number_input("التيار (أمبير - Ampere)", value=10)
-    
-    power = v * i
-    st.metric("القدرة الإجمالية", f"{power} واط (Watt)")
-    st.success(f"تحتاج إلى سلك بقطر مناسب لـ {i} أمبير.")
+    st.subheader("💡 حساب القدرة والشدة")
+    v = st.number_input("الجهد (Volt)", value=220)
+    i = st.number_input("التيار (Ampere)", value=10)
+    st.metric("القدرة الإجمالية", f"{v * i} Watt")
 
-# --- القسم الثالث: دليل الألوان ---
-elif menu == "🎨 دليل ألوان الأسلاك":
-    st.subheader("📋 المعايير المعتمدة في تونس")
+elif menu == "🎨 دليل الألوان":
+    st.subheader("📋 المعايير التونسية")
     st.table({
-        "نوع السلك": ["الطور (Phase)", "المحايد (Neutre)", "الأرضي (Terre)"],
-        "اللون المتفق عليه": ["بني أو أسود", "أزرق سماوي", "أخضر مع أصفر"]
+        "السلك": ["الطور (Phase)", "المحايد (Neutre)", "الأرضي (Terre)"],
+        "اللون": ["بني / أسود", "أزرق", "أخضر وأصفر"]
     })
-    st.warning("تنبيه: دائماً تأكد من قطع التيار قبل فحص الأسلاك!")
