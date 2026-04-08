@@ -1,22 +1,47 @@
-import os
+import streamlit as st
 import google.generativeai as genai
 
-# 1. جلب المفتاح السري من إعدادات النظام (GitHub Secrets)
-# اسم المفتاح هنا يجب أن يكون مطابقاً تماماً لما سميته في GitHub
-api_key = os.environ.get("GEMINI_API_KEY")
+# إعداد الصفحة
+st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡")
+st.write("# ⚡ خبير الكهرباء التونسي")
 
-# 2. التحقق من وجود المفتاح قبل البدء
-if not api_key:
-    raise ValueError("خطأ: لم يتم العثور على 'GEMINI_API_KEY'. تأكد من إضافته في Secrets على GitHub.")
+# جلب المفتاح من Secrets
+key = st.secrets.get("GOOGLE_API_KEY")
 
-# 3. إعداد المكتبة بالمفتاح السري
-genai.configure(api_key=api_key)
-
-# 4. تشغيل النموذج
-model = genai.GenerativeModel('models/gemini-1.5-flash')
-
-try:
-    response = model.generate_content("أهلاً، أنا مبرمج أستخدم GitHub Secrets الآن!")
-    print(response.text)
-except Exception as e:
-    print(f"حدث خطأ أثناء الاتصال بالذكاء الاصطناعي: {e}")
+if key:
+    try:
+        # الإعداد الأساسي
+        genai.configure(api_key=key)
+        
+        # --- التعديل الجذري هنا ---
+        # استخدام الاسم الكامل للموديل يحل مشكلة الـ 404 في معظم المناطق
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
+        
+        prompt = st.chat_input("اسأل خبيرك في الكهرباء...")
+        
+        if prompt:
+            with st.chat_message("user"):
+                st.write(prompt)
+            
+            with st.spinner("جاري الاتصال بالخبير..."):
+                # محاولة طلب المحتوى
+                response = model.generate_content(
+                    f"أنت خبير كهرباء تونسي محترف. أجب بدقة وباللهجة التقنية التونسية: {prompt}"
+                )
+                
+                with st.chat_message("assistant"):
+                    st.write(response.text)
+                
+    except Exception as e:
+        st.error(f"⚠️ حدث خطأ تقني: {str(e)}")
+        # إذا فشل الفلاش، نحاول تشغيل النسخة المستقرة الأخرى تلقائياً
+        if "404" in str(e) or "not found" in str(e).lower():
+            st.info("جاري محاولة الاتصال بموديل احتياطي...")
+            try:
+                backup_model = genai.GenerativeModel('gemini-pro')
+                res = backup_model.generate_content(prompt)
+                st.write(res.text)
+            except:
+                st.warning("تأكد من تحديث ملف requirements.txt إلى أحدث إصدار.")
+else:
+    st.error("المفتاح السري (GOOGLE_API_KEY) ناقص في إعدادات Streamlit.")
