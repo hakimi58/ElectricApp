@@ -1,59 +1,56 @@
 import streamlit as st
 import requests
-import json
 
-# 1. إعدادات الواجهة
+# 1. إعدادات الصفحة
 st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡")
 
-st.markdown("""
-    <style>
-    .stChatMessage { border-radius: 15px; background-color: #f0f2f6; }
-    </style>
-""", unsafe_allow_html=True)
+# 2. عنوان التطبيق
+st.title("⚡ خبير الكهرباء التونسي")
+st.markdown("---")
 
-st.write("# ⚡ خبير الكهرباء التونسي")
-st.caption("مساعدك الذكي للأعطال والتركيبات الكهربائية في تونس")
-
-# 2. جلب المفتاح
+# 3. جلب المفتاح
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
 if not API_KEY:
-    st.error("⚠️ المفتاح مفقود في إعدادات Secrets.")
+    st.error("المفتاح مفقود في إعدادات Secrets!")
 else:
-    # 3. واجهة الدردشة
-    prompt = st.chat_input("اسأل خبيرك (مثلاً: الفاتورة غالية، مشكلة في التار، توزيع المنقذ...)")
+    # واجهة الإدخال
+    user_query = st.text_input("اسأل خبيرك (مثلاً: الفاتورة غالية، مشكلة في التار):")
 
-    if prompt:
-        with st.chat_message("user"):
-            st.write(prompt)
-
-        with st.spinner("جاري استشارة الخبير..."):
-            # الرابط الذي أثبت نجاحه مع حسابك
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
+    if st.button("إرسال السؤال"):
+        if user_query:
+            # عرض سؤالك بوضوح
+            st.info(f"**سؤالك:** {user_query}")
             
-            payload = {
-                "contents": [{
-                    "parts": [{
-                        "text": f"أنت خبير كهرباء تونسي محترف. أجب بدقة وباللهجة التقنية التونسية (استخدم مصطلحات: فويت، منقذ، ديجونكتور، كونتور، خيوط، جعبة). السؤال: {prompt}"
-                    }]
-                }],
-                "generationConfig": { "temperature": 0.7 }
-            }
-
-            try:
-                response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
-                res_json = response.json()
+            with st.spinner("جاري الاتصال بالخبير..."):
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
                 
-                if "candidates" in res_json:
-                    answer = res_json['candidates'][0]['content']['parts'][0]['text']
-                    with st.chat_message("assistant"):
-                        st.write(answer)
-                else:
-                    st.error("حدث خطأ مفاجئ في استلام الإجابة.")
-            except Exception as e:
-                st.error(f"⚠️ خطأ في الاتصال: {e}")
+                payload = {
+                    "contents": [{"parts": [{"text": f"أنت خبير كهرباء تونسي، أجب باللهجة التونسية التقنية: {user_query}"}]}]
+                }
 
-# 4. معلومات جانبية
-with st.sidebar:
-    st.title("نصائح السلامة")
-    st.info("تذكر دائماً: 'الضو ما فيهش لعب'. ديما قص المنقذ قبل ما تخدم أي حاجة.")
+                try:
+                    response = requests.post(url, json=payload)
+                    res_json = response.json()
+                    
+                    if "candidates" in res_json:
+                        answer = res_json['candidates'][0]['content']['parts'][0]['text']
+                        
+                        # الحل الجذري: عرض الإجابة داخل صندوق ملون ثابت
+                        # هذا الصندوق لا يمكن أن يكون نصه أبيض أبداً
+                        st.success("✅ إجابة الخبير:")
+                        st.write(answer)
+                        
+                        # إضافة زر لتحميل الإجابة إذا كنت لا تراها
+                        st.download_button("حفظ الإجابة كنص", answer, file_name="answer.txt")
+                    else:
+                        st.error("السيرفر لم يرسل إجابة، جرب مرة أخرى.")
+                except Exception as e:
+                    st.error(f"خطأ في الاتصال: {e}")
+        else:
+            st.warning("الرجاء كتابة سؤال أولاً.")
+
+# 💡 نصيحة تقنية تونسية
+st.markdown("---")
+st.sidebar.markdown("### 🛠️ نصيحة الخبير")
+st.sidebar.info("ديما ثبت في 'المنقذ' (Disjoncteur) متاعك، إذا كان يسخن برشة راهو فمة 'شوركوي' (Court-circuit) وإلا 'شارج' كبيرة عليه.")
