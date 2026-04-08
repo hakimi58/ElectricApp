@@ -15,7 +15,8 @@ if key:
         
         # --- التعديل الجذري هنا ---
         # استخدام الاسم الكامل للموديل يحل مشكلة الـ 404 في معظم المناطق
-        model = genai.GenerativeModel('models/gemini-1.5-flash')
+        # بدلاً من استخدام الاسم المختصر، نستخدم المسار الكامل
+        model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
         
         prompt = st.chat_input("اسأل خبيرك في الكهرباء...")
         
