@@ -1,35 +1,51 @@
- import streamlit as st
+import streamlit as st
 import google.generativeai as genai
 
-# إعداد الصفحة
+# إعدادات واجهة التطبيق
 st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡")
-st.markdown('<h1 style="text-align:center; color:#e67e22;">⚡ خبير الكهرباء التونسي</h1>', unsafe_allow_html=True)
 
-# الربط مع API
-api_key = st.secrets.get("GOOGLE_API_KEY")
+# تصميم CSS لجعله يشبه تطبيقات الأندرويد
+st.markdown("""
+<style>
+    .stApp { background-color: #f0f2f6; }
+    h1 { color: #e67e22; text-align: center; font-family: 'Arial'; }
+    .stChatInput { border-radius: 20px; }
+</style>
+""", unsafe_allow_html=True)
 
-if api_key:
-    genai.configure(api_key=api_key)
-    # استخدام التسمية العالمية والمستقرة لعام 2026
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
-    # واجهة الدردشة
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+st.title("⚡ خبير الكهرباء التونسي")
 
-    for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
+# جلب المفتاح السري من إعدادات Streamlit
+API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-    if prompt := st.chat_input("اسأل خبيرك التقني..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.chat_message("user").write(prompt)
+if API_KEY:
+    try:
+        genai.configure(api_key=API_KEY)
+        # استخدام الموديل المستقر لعام 2026
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        try:
-            # صياغة الطلب بلهجة تونسية
-            response = model.generate_content(f"أنت مهندس كهرباء تونسي، أجب بدقة على: {prompt}")
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
-            st.chat_message("assistant").write(response.text)
-        except Exception as e:
-            st.error(f"خطأ في الاتصال: {e}")
+        # نظام الدردشة
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        if prompt := st.chat_input("اسأل خبيرك الكهربائي هنا..."):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            with st.chat_message("assistant"):
+                with st.spinner("👷 جاري التفكير في الحل..."):
+                    # توجيه الموديل ليكون خبيراً تونسياً
+                    full_query = f"أنت مهندس كهرباء تونسي خبير. أجب بلهجة تقنية واضحة ومبسطة: {prompt}"
+                    response = model.generate_content(full_query)
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                    
+    except Exception as e:
+        st.error(f"⚠️ حدث خطأ تقني: {e}")
 else:
-    st.warning("يرجى إضافة المفتاح السري GOOGLE_API_KEY")
+    st.warning("⚠️ يرجى التأكد من إضافة GOOGLE_API_KEY في Secrets.")
