@@ -1,7 +1,7 @@
 import google.generativeai as genai
 
 # 1. إعداد المفتاح (استبدل النص بالأسفل بمفتاحك الخاص)
-genai.configure(api_key="ضع_هنا_مفتاح_API_الخاص_بك")
+genai.configure(api_key="AIzaSyBVBqJeBslEfq81liIKXgtwu7YIXX_sCpA")
 
 # 2. اختيار نموذج الذاء الاصطناعي
 model = genai.GenerativeModel('gemini-1.5-flash')
