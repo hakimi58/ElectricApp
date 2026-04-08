@@ -1,75 +1,92 @@
 import streamlit as st
 import requests
+from datetime import datetime
 
 # 1. إعدادات الصفحة
-st.set_page_config(page_title="Tunisia Electric Pro - Devis", page_icon="📈")
+st.set_page_config(page_title="Tunisia Electric Business", page_icon="💰", layout="wide")
 
-# 2. قاعدة بيانات الأسعار (أسعار تقريبية قابلة للتعديل)
-PRICES = {
-    "سلك 1.5 مم² (لفة 100م)": 85.000,
-    "سلك 2.5 مم² (لفة 100م)": 135.000,
-    "ديجونكتور 10A/16A (نوع جيد)": 12.500,
-    "ديجونكتور 20A/32A": 15.000,
-    "لوحة توزيع (8 قواطع)": 45.000,
-    "منقذ فرعي (Interrupteur Diff)": 85.000,
-    "علبة تفرع (Boite de dérivation)": 1.500,
-    "يومية فني كهرباء (يد عاملة)": 80.000,
-    "يومية مساعد (Aide)": 40.000
-}
+# تنسيق واجهة احترافية
+st.markdown("""
+    <style>
+    .stHeader { background-color: #2c3e50; color: white; padding: 10px; border-radius: 10px; }
+    .stButton>button { background-color: #27ae60; color: white; border-radius: 20px; }
+    .report-box { background-color: #ffffff; border: 2px solid #ecf0f1; padding: 20px; border-radius: 10px; }
+    </style>
+""", unsafe_allow_html=True)
 
-st.title("⚡ نظام إدارة الفواتير والأرباح")
-st.markdown("---")
+# العنوان
+st.title("⚡ منصة الكهربائي المحترف (النسخة التجارية)")
 
-# القائمة الجانبية
-choice = st.sidebar.selectbox("اختر المهمة:", ["حساب كلفة مشروع", "استشارة فنية (AI)"])
+# القائمة الجانبية للتنقل
+menu = st.sidebar.radio("اختر الأداة:", ["الرئيسية", "إنشاء فاتورة تقديرية (Devis)", "حاسبة الأحمال", "خبير الذكاء الاصطناعي"])
 
-if choice == "حساب كلفة مشروع":
-    st.header("📋 تقدير ميزانية العمل (Devis)")
-    
-    # اختيار المواد
-    st.subheader("1. اختر المواد اللازمة:")
-    selected_items = {}
-    
+API_KEY = st.secrets.get("GOOGLE_API_KEY")
+
+# --- الخيار 1: إنشاء فاتورة تقديرية (هذه هي ميزة جني المال) ---
+if menu == "إنشاء فاتورة تقديرية (Devis)":
+    st.header("📋 منشئ التقديرات المالية (Devis)")
+    with st.form("devis_form"):
+        client_name = st.text_input("اسم الزبون:")
+        project_type = st.selectbox("نوع العمل:", ["تركيب منزل جديد", "إصلاح عطل", "صيانة مكيف", "تركيب كاميرات"])
+        
+        st.write("--- تفاصيل المواد والعمل ---")
+        items = st.text_area("أدخل المواد والخدمات (مثلاً: 5 قواطع، 2 لفات خيط، يد عاملة...):")
+        total_price = st.number_input("المبلغ الإجمالي التقديري (DT):", min_value=0)
+        
+        submit_devis = st.form_submit_button("إنشاء مسودة الفاتورة")
+        
+        if submit_devis:
+            st.success("تم إنشاء التقدير بنجاح!")
+            devis_text = f"""
+            === تقدير كلفة عمل كهربائي ===
+            التاريخ: {datetime.now().strftime('%Y-%m-%d')}
+            الزبون: {client_name}
+            نوع المهمة: {project_type}
+            ---------------------------
+            التفاصيل:
+            {items}
+            ---------------------------
+            المبلغ الجملي: {total_price} دينار تونس
+            ---------------------------
+            شكراً لثقتكم - فني كهرباء محترف
+            """
+            st.code(devis_text, language="text")
+            st.download_button("تحميل الفاتورة كملف نصي", devis_text, file_name=f"Devis_{client_name}.txt")
+
+# --- الخيار 2: حاسبة الأحمال (أداة ميدانية) ---
+elif menu == "حاسبة الأحمال":
+    st.header("🧮 حسابات السلك والقاطع")
     col1, col2 = st.columns(2)
     with col1:
-        for item in list(PRICES.keys())[:4]:
-            qty = st.number_input(f"كمية {item}:", min_value=0, step=1, key=item)
-            if qty > 0:
-                selected_items[item] = qty
-    
+        watt = st.number_input("القوة بالواط (W):", value=2000)
+        dist = st.number_input("المسافة (متر):", value=10)
     with col2:
-        for item in list(PRICES.keys())[4:]:
-            qty = st.number_input(f"كمية {item}:", min_value=0, step=1, key=item)
-            if qty > 0:
-                selected_items[item] = qty
+        amp = watt / 220
+        st.metric("التيار (Ampere)", f"{amp:.2f} A")
+        
+        if amp <= 10: rec = "خيط 1.5 مم² + ديجونكتور 10A"
+        elif amp <= 16: rec = "خيط 2.5 مم² + ديجونكتور 16A"
+        else: rec = "خيط 4 مم² أو أكثر + ديجونكتور 25A"
+        st.info(f"النتيجة المقترحة: {rec}")
 
-    # عرض الفاتورة
-    if st.button("توليد الفاتورة النهائية"):
-        st.markdown("### 📝 تفاصيل الفاتورة التقديرية")
-        total_sum = 0
-        invoice_text = "المادة | الكمية | الثمن\n---|---|---\n"
-        
-        for item, qty in selected_items.items():
-            subtotal = qty * PRICES[item]
-            total_sum += subtotal
-            invoice_text += f"{item} | {qty} | {subtotal:.3f} DT\n"
-        
-        st.markdown(invoice_text)
-        st.warning(f"### 💰 المبلغ الإجمالي: {total_sum:.3f} دينار تونسي")
-        
-        # ميزة حفظ البيانات
-        st.download_button("تحميل الفاتورة للزبون (Text)", 
-                           f"فاتورة تقديرية\n\n{invoice_text}\nالمجموع: {total_sum:.3f} DT", 
-                           file_name="Devis_Tunisia_Electric.txt")
-
-elif choice == "استشارة فنية (AI)":
-    st.header("🤖 مساعدك الذكي في الميدان")
-    API_KEY = st.secrets.get("GOOGLE_API_KEY")
-    query = st.text_area("اشرح المشكل (مثلاً: طريقة ربط Télérupteur):")
-    
-    if st.button("اسأل الخبير"):
-        if query and API_KEY:
+# --- الخيار 3: الذكاء الاصطناعي (الدعم الفني) ---
+elif menu == "خبير الذكاء الاصطناعي":
+    st.header("🤖 استشارة تقنية فورية")
+    problem = st.text_area("اشرح العطل التقني:")
+    if st.button("تحليل العطل"):
+        if problem and API_KEY:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
-            payload = {"contents": [{"parts": [{"text": f"أنت خبير كهرباء، أجب باللهجة التونسية: {query}"}]}]}
+            payload = {"contents": [{"parts": [{"text": f"أنت خبير كهرباء، أجب باللهجة التونسية التقنية: {problem}"}]}]}
             res = requests.post(url, json=payload)
-            st.code(res.json()['candidates'][0]['content']['parts'][0]['text'], language="text")
+            st.text_area("رد الخبير:", value=res.json()['candidates'][0]['content']['parts'][0]['text'], height=200)
+
+# --- الصفحة الرئيسية ---
+else:
+    st.write("### مرحباً بك في رفيقك المهني اليومي")
+    st.info("استخدم القائمة الجانبية للوصول إلى الأدوات.")
+    
+    st.subheader("📌 مرجع سريع للألوان (المواصفات التونسية)")
+    st.table({
+        "السلك": ["Phase (حامي)", "Neutre (بارد)", "Terre (أرضي)"],
+        "اللون": ["أحمر / بني / أسود", "أزرق", "أخضر وأصفر"]
+    })
