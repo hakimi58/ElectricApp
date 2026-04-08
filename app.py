@@ -1,53 +1,47 @@
 import streamlit as st
 import google.generativeai as genai
 
-# إعداد الصفحة لتناسب شكل تطبيقات الهاتف
-st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡", layout="centered")
+# إعداد الصفحة
+st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡")
 
-# إضافة لمسات جمالية (CSS)
-st.markdown("""
-<style>
-    .stApp { background-color: #f8f9fa; }
-    .main-title { color: #e67e22; text-align: center; font-size: 26px; font-weight: bold; }
-    .stButton>button { width: 100%; border-radius: 12px; background-color: #e67e22; color: white; height: 3em; }
-</style>
-""", unsafe_allow_html=True)
+st.markdown('<h1 style="text-align:center;">⚡ خبير الكهرباء التونسي Pro</h1>', unsafe_allow_html=True)
 
-st.markdown('<p class="main-title">⚡ خبير الكهرباء التونسي Pro</p>', unsafe_allow_html=True)
+# القائمة الجانبية
+menu = st.sidebar.radio("القائمة:", ["🤖 استشارة الذكاء الاصطناعي", "🧮 حاسبة الأحمال", "🎨 دليل الألوان"])
 
-# القائمة الجانبية للتنقل (مثل التطبيقات الحقيقية)
-st.sidebar.header("⚙️ القائمة")
-menu = st.sidebar.radio("اختر الوظيفة:", ["🤖 استشارة الذكاء الاصطناعي", "🧮 حاسبة الأحمال", "🎨 دليل الألوان"])
-
-# جلب المفتاح من Secrets
 api_key = st.secrets.get("GOOGLE_API_KEY")
 
 if menu == "🤖 استشارة الذكاء الاصطناعي":
-    st.info("مرحباً بك! اسألني عن أي مشكل كهربائي.")
     if api_key:
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            user_input = st.chat_input("اكتب سؤالك هنا...")
+            
+            # الحل السحري: تجربة الموديل بدون تحديد v1beta يدوياً
+            # واستخدام اسم الموديل الأكثر استقراراً
+            model = genai.GenerativeModel('gemini-1.5-flash-latest') 
+            
+            user_input = st.chat_input("اسأل خبيرك...")
             if user_input:
                 with st.chat_message("user"): st.write(user_input)
-                with st.spinner("جاري التفكير..."):
-                    res = model.generate_content(f"أنت خبير كهرباء تونسي محترف: {user_input}")
+                with st.spinner("جاري التحليل..."):
+                    # إضافة تعليمات النظام لضمان اللهجة التونسية
+                    res = model.generate_content(f"أجب كخبير كهرباء تونسي: {user_input}")
                     with st.chat_message("assistant"): st.write(res.text)
         except Exception as e:
-            st.error(f"خطأ: {e}")
+            # إذا فشل الموديل الأول، نجرب الموديل الاحتياطي فوراً
+            try:
+                model = genai.GenerativeModel('gemini-pro')
+                res = model.generate_content(user_input)
+                st.write(res.text)
+            except:
+                st.error("جوجل قام بتحديث الموديلات. يرجى التأكد من تحديث مكتبة google-generativeai في ملف requirements.txt")
     else:
-        st.warning("⚠️ يرجى إضافة المفتاح السري في إعدادات Streamlit")
+        st.warning("⚠️ يرجى إضافة المفتاح السري")
 
 elif menu == "🧮 حاسبة الأحمال":
-    st.subheader("💡 حساب القدرة والشدة")
-    v = st.number_input("الجهد (Volt)", value=220)
-    i = st.number_input("التيار (Ampere)", value=10)
-    st.metric("القدرة الإجمالية", f"{v * i} Watt")
+    v = st.number_input("الجهد (V)", value=220)
+    i = st.number_input("التيار (A)", value=10)
+    st.metric("القدرة", f"{v * i} Watt")
 
 elif menu == "🎨 دليل الألوان":
-    st.subheader("📋 المعايير التونسية")
-    st.table({
-        "السلك": ["الطور (Phase)", "المحايد (Neutre)", "الأرضي (Terre)"],
-        "اللون": ["بني / أسود", "أزرق", "أخضر وأصفر"]
-    })
+    st.table({"السلك": ["Phase", "Neutre", "Terre"], "اللون": ["بني", "أزرق", "أخضر/أصفر"]})
