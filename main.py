@@ -1,48 +1,40 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import json
 
-# إعداد الصفحة
 st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡")
 st.write("# ⚡ خبير الكهرباء التونسي")
 
-# جلب المفتاح من Secrets
+# جلب المفتاح
 key = st.secrets.get("GOOGLE_API_KEY")
 
 if key:
-    try:
-        # الإعداد الأساسي
-        genai.configure(api_key=key)
+    prompt = st.chat_input("اسأل خبيرك...")
+    if prompt:
+        with st.chat_message("user"):
+            st.write(prompt)
         
-        # --- التعديل الجذري هنا ---
-        # استخدام الاسم الكامل للموديل يحل مشكلة الـ 404 في معظم المناطق
-        # بدلاً من استخدام الاسم المختصر، نستخدم المسار الكامل
-        model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
-        
-        prompt = st.chat_input("اسأل خبيرك في الكهرباء...")
-        
-        if prompt:
-            with st.chat_message("user"):
-                st.write(prompt)
+        with st.spinner("جاري استشارة الخبير عبر الرابط المباشر..."):
+            # رابط API المباشر لجوجل (بدون الحاجة لمكتبة genai)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
             
-            with st.spinner("جاري الاتصال بالخبير..."):
-                # محاولة طلب المحتوى
-                response = model.generate_content(
-                    f"أنت خبير كهرباء تونسي محترف. أجب بدقة وباللهجة التقنية التونسية: {prompt}"
-                )
+            headers = {'Content-Type': 'application/json'}
+            data = {
+                "contents": [{
+                    "parts": [{"text": f"أنت خبير كهرباء تونسي محترف. أجب بدقة وباللهجة التقنية التونسية على السؤال التالي: {prompt}"}]
+                }]
+            }
+            
+            try:
+                response = requests.post(url, headers=headers, data=json.dumps(data))
+                result = response.json()
+                
+                # استخراج النص من النتيجة
+                answer = result['candidates'][0]['content']['parts'][0]['text']
                 
                 with st.chat_message("assistant"):
-                    st.write(response.text)
-                
-    except Exception as e:
-        st.error(f"⚠️ حدث خطأ تقني: {str(e)}")
-        # إذا فشل الفلاش، نحاول تشغيل النسخة المستقرة الأخرى تلقائياً
-        if "404" in str(e) or "not found" in str(e).lower():
-            st.info("جاري محاولة الاتصال بموديل احتياطي...")
-            try:
-                backup_model = genai.GenerativeModel('gemini-pro')
-                res = backup_model.generate_content(prompt)
-                st.write(res.text)
-            except:
-                st.warning("تأكد من تحديث ملف requirements.txt إلى أحدث إصدار.")
+                    st.write(answer)
+            except Exception as e:
+                st.error(f"⚠️ عطل فني: {str(e)}")
 else:
-    st.error("المفتاح السري (GOOGLE_API_KEY) ناقص في إعدادات Streamlit.")
+    st.error("المفتاح السري ناقص")
