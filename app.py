@@ -1,48 +1,78 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import json
 
-# إعداد الصفحة
+# 1. إعدادات الصفحة والواجهة
 st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡")
+
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f5f7f9;
+    }
+    .stChatMessage {
+        border-radius: 15px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.write("# ⚡ خبير الكهرباء التونسي")
+st.caption("مساعدك الذكي لتشخيص الأعطال الكهربائية في تونس")
 
-# 1. جلب المفتاح السري من Streamlit Secrets
-# تأكد أنك وضعته في GitHub أو Streamlit Cloud باسم GOOGLE_API_KEY
-key = st.secrets.get("GOOGLE_API_KEY")
+# 2. جلب المفتاح السري من إعدادات Streamlit
+# تأكد من إضافة GOOGLE_API_KEY في Secrets على منصة Streamlit
+API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-if key:
-    try:
-        # تهيئة المكتبة
-        genai.configure(api_key=key) 
-        
-        # 2. تحديث استدعاء الموديل (تم إزالة الإعدادات المعقدة لضمان التوافق)
-        # نستخدم gemini-1.5-flash مباشرة
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = st.chat_input("اسأل خبيرك في الكهرباء...")
-        
-        if prompt:
-            with st.chat_message("user"):
-                st.write(prompt)
-            
-            with st.spinner("جاري استشارة الخبير..."):
-                # محاولة توليد المحتوى
-                response = model.generate_content(
-                    f"أنت خبير كهرباء تونسي محترف. أجب باللغة العربية (ويمكنك استخدام مصطلحات تونسية تقنية) على السؤال التالي بدقة: {prompt}"
-                )
-                
-                with st.chat_message("assistant"):
-                    if response.text:
-                        st.write(response.text)
-                    else:
-                        st.error("تعذر الحصول على إجابة، حاول صياغة السؤال بشكل مختلف.")
-                
-    except Exception as e:
-        # معالجة ذكية للأخطاء
-        error_msg = str(e)
-        if "404" in error_msg:
-            st.error("⚠️ الموديل gemini-1.5-flash غير متاح حالياً في منطقتك أو يحتاج لتحديث المكتبة.")
-            st.info("نصيحة: تأكد من تحديث ملف requirements.txt")
-        else:
-            st.error(f"⚠️ خطأ تقني: {error_msg}")
+if not API_KEY:
+    st.error("⚠️ خطأ: المفتاح السري GOOGLE_API_KEY مفقود. يرجى إضافته في إعدادات التطبيق.")
 else:
-    st.warning("⚠️ المفتاح السري (GOOGLE_API_KEY) مفقود. يرجى إضافته في إعدادات Secrets.")
+    # 3. واجهة الدردشة
+    prompt = st.chat_input("اسأل خبيرك (مثلاً: الفاتورة غالية، القاطع يسقط...)")
+
+    if prompt:
+        # عرض سؤال المستخدم
+        with st.chat_message("user"):
+            st.write(prompt)
+
+        with st.spinner("جاري استشارة الخبير..."):
+            # رابط API المباشر لـ Gemini 1.5 Flash
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+            
+            headers = {'Content-Type': 'application/json'}
+            
+            # صياغة الطلب مع توجيه الشخصية (System Prompt)
+            payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": f"أنت خبير كهرباء تونسي محترف ومتمكن. أجب بدقة، بوضوح، وباللهجة التقنية التونسية (استخدم مصطلحات مثل: فويت، منقذ، كونتور، ديجونكتور) على السؤال التالي: {prompt}"
+                    }]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 1000
+                }
+            }
+
+            try:
+                # إرسال الطلب
+                response = requests.post(url, headers=headers, data=json.dumps(payload))
+                response_json = response.json()
+                
+                # استخراج النص من استجابة جوجل
+                if "candidates" in response_json:
+                    answer = response_json['candidates'][0]['content']['parts'][0]['text']
+                    with st.chat_message("assistant"):
+                        st.write(answer)
+                else:
+                    st.error("حدث خطأ في استجابة الذكاء الاصطناعي. تأكد من صحة المفتاح.")
+                    # عرض تفاصيل الخطأ للمبرمج (أنت) لتسهيل الإصلاح
+                    with st.expander("تفاصيل الخطأ التقني"):
+                        st.write(response_json)
+                        
+            except Exception as e:
+                st.error(f"⚠️ فشل الاتصال بالسيرفر: {str(e)}")
+
+# 4. قائمة جانبية بسيطة
+with st.sidebar:
+    st.title("حول التطبيق")
+    st.info("هذا التطبيق يستخدم الذكاء الاصطناعي لتقديم نصائح كهربائية عامة. استشر دائماً فني مختص للأمور الخطيرة.")
