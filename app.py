@@ -1,49 +1,48 @@
 import streamlit as st
 import google.generativeai as genai
 
+# إعداد الصفحة
 st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡")
 st.write("# ⚡ خبير الكهرباء التونسي")
 
-# إعداد المفتاح
+# 1. جلب المفتاح السري من Streamlit Secrets
+# تأكد أنك وضعته في GitHub أو Streamlit Cloud باسم GOOGLE_API_KEY
 key = st.secrets.get("GOOGLE_API_KEY")
 
 if key:
     try:
-        # إجبار المكتبة على استخدام الإصدار المستقر v1 وليس v1beta
-        genai.configure(api_key=key, transport='grpc') 
+        # تهيئة المكتبة
+        genai.configure(api_key=key) 
         
-        # استخدام الموديل بدون أي إضافات في الاسم لضمان التوافق
+        # 2. تحديث استدعاء الموديل (تم إزالة الإعدادات المعقدة لضمان التوافق)
+        # نستخدم gemini-1.5-flash مباشرة
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        prompt = st.chat_input("اسأل خبيرك...")
+        prompt = st.chat_input("اسأل خبيرك في الكهرباء...")
+        
         if prompt:
             with st.chat_message("user"):
                 st.write(prompt)
             
-            # الطلب مع تحديد الإعدادات لضمان عدم حدوث خطأ 404
-            response = model.generate_content(
-                f"أنت خبير كهرباء تونسي، أجب بدقة على: {prompt}",
-                generation_config=genai.types.GenerationConfig(
-                    candidate_count=1,
-                    max_output_tokens=1000,
-                    temperature=0.7
+            with st.spinner("جاري استشارة الخبير..."):
+                # محاولة توليد المحتوى
+                response = model.generate_content(
+                    f"أنت خبير كهرباء تونسي محترف. أجب باللغة العربية (ويمكنك استخدام مصطلحات تونسية تقنية) على السؤال التالي بدقة: {prompt}"
                 )
-            )
-            
-            with st.chat_message("assistant"):
-                st.write(response.text)
+                
+                with st.chat_message("assistant"):
+                    if response.text:
+                        st.write(response.text)
+                    else:
+                        st.error("تعذر الحصول على إجابة، حاول صياغة السؤال بشكل مختلف.")
                 
     except Exception as e:
-        # إذا استمر الخطأ، سنعرضه هنا لنفهمه بدقة
-        st.error(f"⚠️ تنبيه تقني: {str(e)}")
-        if "404" in str(e):
-            st.info("جوجل تطلب تحديث الرابط. جاري المحاولة بطريقة احتياطية...")
-            # محاولة أخيرة بموديل مختلف تماماً
-            try:
-                backup_model = genai.GenerativeModel('gemini-pro')
-                res = backup_model.generate_content(prompt)
-                st.write(res.text)
-            except:
-                st.warning("يرجى مراجعة ملف requirements.txt والتأكد أنه يحتوي على google-generativeai فقط بدون تحديد إصدار قديم.")
+        # معالجة ذكية للأخطاء
+        error_msg = str(e)
+        if "404" in error_msg:
+            st.error("⚠️ الموديل gemini-1.5-flash غير متاح حالياً في منطقتك أو يحتاج لتحديث المكتبة.")
+            st.info("نصيحة: تأكد من تحديث ملف requirements.txt")
+        else:
+            st.error(f"⚠️ خطأ تقني: {error_msg}")
 else:
-    st.error("المفتاح السري ناقص")
+    st.warning("⚠️ المفتاح السري (GOOGLE_API_KEY) مفقود. يرجى إضافته في إعدادات Secrets.")
