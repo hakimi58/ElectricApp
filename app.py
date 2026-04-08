@@ -1,46 +1,59 @@
 import streamlit as st
 import requests
+import json
 
+# 1. إعدادات الواجهة
 st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡")
-st.write("# ⚡ خبير الكهرباء التونسي")
 
+st.markdown("""
+    <style>
+    .stChatMessage { border-radius: 15px; background-color: #f0f2f6; }
+    </style>
+""", unsafe_allow_html=True)
+
+st.write("# ⚡ خبير الكهرباء التونسي")
+st.caption("مساعدك الذكي للأعطال والتركيبات الكهربائية في تونس")
+
+# 2. جلب المفتاح
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
 if not API_KEY:
-    st.error("⚠️ المفتاح مفقود في Secrets.")
+    st.error("⚠️ المفتاح مفقود في إعدادات Secrets.")
 else:
-    # خطوة 1: البحث عن الموديلات المتاحة في حسابك
-    with st.spinner("جاري فحص الموديلات المتاحة في حسابك..."):
-        list_models_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={API_KEY}"
-        try:
-            res = requests.get(list_models_url)
-            models_data = res.json()
-            # نبحث عن أي موديل يدعم توليد المحتوى
-            available_models = [m['name'] for m in models_data.get('models', []) if 'generateContent' in m.get('supportedGenerationMethods', [])]
+    # 3. واجهة الدردشة
+    prompt = st.chat_input("اسأل خبيرك (مثلاً: الفاتورة غالية، مشكلة في التار، توزيع المنقذ...)")
+
+    if prompt:
+        with st.chat_message("user"):
+            st.write(prompt)
+
+        with st.spinner("جاري استشارة الخبير..."):
+            # الرابط الذي أثبت نجاحه مع حسابك
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
             
-            if not available_models:
-                st.error("❌ لا يوجد أي موديل متاح لهذا المفتاح. تأكد من تفعيل Gemini API.")
-            else:
-                # نختار أول موديل متاح (غالباً سيكون gemini-1.5-flash أو gemini-pro)
-                selected_model = available_models[0]
-                st.success(f"✅ تم الاتصال بنجاح عبر الموديل: {selected_model.split('/')[-1]}")
+            payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": f"أنت خبير كهرباء تونسي محترف. أجب بدقة وباللهجة التقنية التونسية (استخدم مصطلحات: فويت، منقذ، ديجونكتور، كونتور، خيوط، جعبة). السؤال: {prompt}"
+                    }]
+                }],
+                "generationConfig": { "temperature": 0.7 }
+            }
+
+            try:
+                response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+                res_json = response.json()
                 
-                prompt = st.chat_input("اسأل خبير الكهرباء الآن...")
-                if prompt:
-                    with st.chat_message("user"):
-                        st.write(prompt)
-                    
-                    # خطوة 2: إرسال السؤال للموديل الذي وجدناه
-                    gen_url = f"https://generativelanguage.googleapis.com/v1beta/{selected_model}:generateContent?key={API_KEY}"
-                    payload = {"contents": [{"parts": [{"text": f"أنت خبير كهرباء تونسي، أجب باللهجة التونسية التقنية: {prompt}"}]}]}
-                    
-                    response = requests.post(gen_url, json=payload)
-                    answer = response.json()['candidates'][0]['content']['parts'][0]['text']
-                    
+                if "candidates" in res_json:
+                    answer = res_json['candidates'][0]['content']['parts'][0]['text']
                     with st.chat_message("assistant"):
                         st.write(answer)
-        except Exception as e:
-            st.error(f"⚠️ فشل الفحص: {e}")
+                else:
+                    st.error("حدث خطأ مفاجئ في استلام الإجابة.")
+            except Exception as e:
+                st.error(f"⚠️ خطأ في الاتصال: {e}")
 
+# 4. معلومات جانبية
 with st.sidebar:
-    st.info("نصيحة: إذا كنت في تونس، تأكد أن حساب جوجل الخاص بك ليس مربوطاً بدولة محظورة.")
+    st.title("نصائح السلامة")
+    st.info("تذكر دائماً: 'الضو ما فيهش لعب'. ديما قص المنقذ قبل ما تخدم أي حاجة.")
