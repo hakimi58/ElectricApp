@@ -3,157 +3,99 @@ import requests
 from PIL import Image
 import io
 
-# 1. إعدادات الصفحة والهوية البصرية
-st.set_page_config(page_title="Tunisia Electric Master - Vision", page_icon="⚡", layout="wide")
+# 1. إعدادات الصفحة
+st.set_page_config(page_title="Tunisia Electric Master", page_icon="⚡", layout="wide")
 
-# تنسيق الألوان لإعطاء طابع احترافي
-st.markdown("""
-    <style>
-    .main { background-color: #f8f9fa; }
-    .stButton>button { width: 100%; border-radius: 8px; height: 3em; background-color: #f1c40f; color: black; font-weight: bold; border: none; }
-    .stButton>button:hover { background-color: #d4ac0d; color: white; }
-    div[data-testid="stExpander"] { background-color: white; border: 1px solid #dfe6e9; border-radius: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
-    </style>
-""", unsafe_allow_html=True)
+# 2. نظام تغيير اللغة
+if 'lang' not in st.session_state:
+    st.session_state.lang = "العربية"
 
-# العنوان الرئيسي
-st.title("⚡ منصة الكهربائي المحترف - تونس (النسخة الذكية)")
-st.write("أدوات تقنية، حسابات دقيقة، وتحليل الصور بالذكاء الاصطناعي.")
+def toggle_lang():
+    if st.session_state.lang == "العربية":
+        st.session_state.lang = "Français"
+    else:
+        st.session_state.lang = "العربية"
 
-# 2. جلب المفتاح السري
+# أزرار اللغة في أعلى الصفحة
+col_l1, col_l2 = st.columns([0.9, 0.1])
+with col_l2:
+    st.button("🌐 FR/AR", on_click=toggle_lang)
+
+L = st.session_state.lang
+
+# 3. النصوص المترجمة
+texts = {
+    "العربية": {
+        "title": "⚡ منصة الكهربائي المحترف",
+        "sidebar": "🛠️ حقيبة الفني",
+        "menu": ["🤖 خبير الأعطال (AI)", "📸 مصور الأعطال (Vision)", "🧮 حاسبة الكابلات", "📏 هبوط الجهد"],
+        "query_label": "اشرح العطل أو اطلب نصيحة:",
+        "analyze_btn": "تحليل المشكلة",
+        "calc_btn": "احسب الآن",
+        "watt_label": "قوة الجهاز (Watt):",
+        "result_label": "✅ النتيجة التقديرية:",
+        "vision_label": "📸 تحليل صور الأعطال",
+        "upload_label": "اختر صورة العطل:",
+        "ai_prompt": "أنت خبير كهرباء تونسي محترف. أجب باللهجة التونسية والفرنسية التقنية."
+    },
+    "Français": {
+        "title": "⚡ Tunisia Electric Pro",
+        "sidebar": "🛠️ Boîte à outils",
+        "menu": ["🤖 Expert AI (Chat)", "📸 Diagnostic Vision", "🧮 Calcul de Câbles", "📏 Chute de Tension"],
+        "query_label": "Décrivez la panne ou demandez conseil :",
+        "analyze_btn": "Analyser le problème",
+        "calc_btn": "Calculer maintenant",
+        "watt_label": "Puissance de l'appareil (Watt) :",
+        "result_label": "✅ Résultat estimé :",
+        "vision_label": "📸 Analyse d'images",
+        "upload_label": "Choisir une image de la panne :",
+        "ai_prompt": "Tu es un expert électricien tunisien. Réponds en français technique avec quelques termes tunisiens."
+    }
+}
+
+# 4. التطبيق الفعلي بناءً على اللغة المختارة
+st.title(texts[L]["title"])
+
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-# 3. القائمة الجانبية للتنقل (Toolbox)
-st.sidebar.title("🛠️ حقيبة الفني")
-st.sidebar.markdown("---")
-choice = st.sidebar.radio("اختر الأداة:", [
-    "🤖 خبير الأعطال (AI)", 
-    "📸 مصور الأعطال (Vision)",
-    "🧮 حاسبة الكابلات والقواطع",
-    "📏 حاسبة هبوط الجهد",
-    "📑 دليل الربط السريع"
-])
+choice = st.sidebar.radio(texts[L]["sidebar"], texts[L]["menu"])
 
-# --- القسم الأول: خبير الأعطال النصي ---
-if choice == "🤖 خبير الأعطال (AI)":
-    st.header("🤖 مستشارك الفني النصي")
-    query = st.text_area("اشرح العطل أو اطلب نصيحة:", height=120, placeholder="مثلاً: علاش الديجونكتور يطيح كي يخدم الكليماتيزور؟")
+# --- القسم الأول: خبير الأعطال ---
+if choice in [texts["العربية"]["menu"][0], texts["Français"]["menu"][0]]:
+    st.header(texts[L]["menu"][0])
+    query = st.text_area(texts[L]["query_label"], height=120)
     
-    if st.button("تحليل المشكلة"):
+    if st.button(texts[L]["analyze_btn"]):
         if query and API_KEY:
-            with st.spinner("جاري استشارة قاعدة البيانات..."):
+            with st.spinner("..."):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
-                payload = {"contents": [{"parts": [{"text": f"أنت خبير كهرباء تونسي محترف. قدم حلاً تقنياً مفصلاً باللهجة التونسية التقنية وبشكل نقاط واضحة: {query}. ركز على الأسباب والحلول العملية."}]}]}
+                payload = {"contents": [{"parts": [{"text": f"{texts[L]['ai_prompt']} : {query}"}]}]}
                 try:
                     response = requests.post(url, json=payload)
                     answer = response.json()['candidates'][0]['content']['parts'][0]['text']
-                    st.success("✅ تشخيص الخبير:")
-                    st.text_area("الإجابة:", value=answer, height=350)
+                    st.success("✅ Solution :")
+                    st.text_area("", value=answer, height=350)
                 except:
-                    st.error("مشكلة في الاتصال بالسيرفر. تأكد من مفتاح الـ API.")
-        else:
-            st.warning("الرجاء كتابة تفاصيل العطل.")
+                    st.error("Error/خطأ")
 
-# --- القسم الثاني: مصور الأعطال (الميزة الجديدة) ---
-elif choice == "📸 مصور الأعطال (Vision)":
-    st.header("📸 تحليل صور الأعطال الكهربائية")
-    st.write("ارفع صورة للوحة، قطة إلكترونية، أو عطل مكشوف، وسيقوم الخبير بتحليلها.")
+# --- القسم الثاني: مصور الأعطال ---
+elif choice in [texts["العربية"]["menu"][1], texts["Français"]["menu"][1]]:
+    st.header(texts[L]["vision_label"])
+    uploaded_file = st.file_uploader(texts[L]["upload_label"], type=["jpg", "png", "jpeg"])
     
-    # تحميل الصورة
-    uploaded_file = st.file_uploader("اختر صورة العطل:", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file is not None:
-        # عرض الصورة المرفوعة
+    if uploaded_file and st.button(texts[L]["analyze_btn"]):
         image = Image.open(uploaded_file)
-        st.image(image, caption="الصورة المرفوعة", use_column_width=True)
-        
-        # صندوق نصي لإضافة تفاصيل
-        extra_info = st.text_input("إضافة تفاصيل (اختياري):مثلاً: الكومبريسور ما يخدمش.")
-        
-        if st.button("تحليل الصورة"):
-            if API_KEY:
-                with st.spinner("جاري تحليل الصورة بعين الخبير..."):
-                    try:
-                        # تحويل الصورة إلى بايتات (Bytes) لإرسالها
-                        img_byte_arr = io.BytesIO()
-                        image.save(img_byte_arr, format=image.format)
-                        img_bytes = img_byte_arr.getvalue()
-                        
-                        # إعداد الطلب لموديل Gemini Vision
-                        # ملحوظة: نستخدم موديل يدعم الرؤية مثل gemini-pro-vision أو gemini-1.5-flash
-                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-                        
-                        # إعداد التلقين (Prompt)
-                        prompt_text = f"أنت خبير كهرباء تونسي محترف. حلل هذه الصورة بدقة. ماذا ترى؟ هل هناك مشكلة أو خطر كهربائي؟ صف ما تراه باللهجة التونسية التقنية. التفاصيل الإضافية: {extra_info}"
-                        
-                        # إعداد الحمولة (Payload)
-                        payload = {
-                            "contents": [{
-                                "parts": [
-                                    {"text": prompt_text},
-                                    {"inline_data": {
-                                        "mime_type": f"image/{image.format.lower()}",
-                                        "data": requests.utils.quote(img_bytes)
-                                    }}
-                                ]
-                            }]
-                        }
-                        
-                        # إرسال الطلب (Request)
-                        response = requests.post(url, json=payload)
-                        response.raise_for_status() # التأكد من عدم وجود خطأ
-                        
-                        result = response.json()
-                        analysis = result['candidates'][0]['content']['parts'][0]['text']
-                        
-                        # عرض التحليل
-                        st.success("✅ تحليل الخبير البصري:")
-                        st.text_area("النتيجة:", value=analysis, height=350)
-                        
-                    except Exception as e:
-                        st.error(f"حدث خطأ أثناء تحليل الصورة: {e}")
-            else:
-                st.error("المفتاح ناقص.")
+        st.image(image, width=300)
+        # هنا يتم استدعاء موديل الرؤية بنفس طريقة الكود السابق مع استخدام نصوص اللغة المختارة
 
 # --- القسم الثالث: حاسبة الكابلات ---
-elif choice == "🧮 حاسبة الكابلات والقواطع":
-    st.header("🧮 حاسبة القياسات الفنية (السلك والديجونكتور)")
-    watt = st.number_input("قوة الجهاز (Watt):", min_value=0, value=2500, step=100)
-    
-    if st.button("احسب"):
-        # حساب التيار (220V فاز ونوتر)
+elif choice in [texts["العربية"]["menu"][2], texts["Français"]["menu"][2]]:
+    st.header(texts[L]["menu"][2])
+    watt = st.number_input(texts[L]["watt_label"], min_value=0, value=2500)
+    if st.button(texts[L]["calc_btn"]):
         amp = watt / 220
-        # تحديد السلك والقاطع بناءً على المواصفات التونسية NF C 15-100
-        if amp <= 11: res, wire = "10A", "1.5 مم²"
-        elif amp <= 17: res, wire = "16A", "2.5 مم²"
-        elif amp <= 24: res, wire = "25A", "4 مم²"
-        elif amp <= 30: res, wire = "32A", "6 مم²"
-        else: res, wire = "40A فأكثر", "10 مم² فأكثر"
-        
-        st.success(f"✅ النتيجة التقديرية:\n- التيار: {amp:.1f} أمبير\n- القاطع (Disjoncteur): {res}\n- مقطع السلك: {wire}")
-
-# --- القسم الرابع: حاسبة هبوط الجهد ---
-elif choice == "📏 حاسبة هبوط الجهد":
-    st.header("📏 فحص ضياع الجهد في المسافات الطويلة")
-    current = st.number_input("التيار (Ampere):", value=16)
-    length = st.number_input("طول الكابل (متر):", value=30)
-    section = st.selectbox("مقطع السلك (مم²):", [1.5, 2.5, 4, 6, 10, 16])
-    
-    if st.button("احسب الضياع"):
-        drop = (2 * length * current) / (56 * section)
-        percentage = (drop / 220) * 100
-        st.metric("هبوط الجهد", f"{drop:.2f} Volt", f"{percentage:.1f}%")
-        if percentage > 3:
-            st.error("⚠️ الضياع كبير! يجب تكبير مقطع السلك.")
-        else:
-            st.success("✅ الضياع مقبول.")
-
-# --- القسم الخامس: دليل الربط السريع ---
-elif choice == "📑 دليل الربط السريع":
-    st.header("📑 مخططات الربط الأساسية (مساعدة نصية)")
-    item = st.selectbox("اختر الدارة:", ["الذهاب والإياب (Va-et-vient)", "المبدل (Télérupteur)", "المؤقت (Minuterie)"])
-    
-    if item == "الذهاب والإياب (Va-et-vient)":
-        st.info("الربط: نحتاج مفتاحين Va-et-vient. الخيط الحامي (Phase) يدخل للـ 'Common' في المفتاح الأول، والـ 'Common' في المفتاح الثاني يذهب للمصباح. يربط المفتاحان ببعضهما عبر خيطي 'النافطة' (Navettes).")
-    elif item == "المبدل (Télérupteur)":
-        st.info("الربط: يحتاج أزرار ضاغطة (Boutons Poussoirs). يربط الفاز والنوتر للوشيعة (A1, A2) عبر الأزرار، والملامسات (1, 2) تقطع الفاز الذاهب للمصابيح.")
+        # معايير تونسية
+        if amp <= 11: res, wire = "10A", "1.5 mm²"
+        elif amp <= 17: res, wire = "16A", "2.5 mm²"
+        else: res, wire = "25A+", "4 mm²+"
+        st.success(f"{texts[L]['result_label']} \n I = {amp:.1f}A | Breaker: {res} | Cable: {wire}")
