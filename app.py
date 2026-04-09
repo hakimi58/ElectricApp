@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 import requests
 
-# 1. إعدادات الصفحة (النسخة 8)
+# 1. إعدادات الصفحة (النسخة 8 الأصلية)
 st.set_page_config(page_title="منصة الكهربائي المحترف", page_icon="⚡", layout="wide")
 
 # 2. نظام اختيار اللغة (تونسية، فرنسية، إنجليزية فقط)
@@ -73,7 +73,7 @@ elif choice == texts[L]["menu"][1]:
         wire = "1.5 مم²" if amp <= 11 else "2.5 مم²" if amp <= 17 else "4 مم²+"
         st.success(f"I = {amp:.2f} A | Cable: {wire}")
 
-# --- القسم الثالث: تحرير الفواتير (يدوية بسيطة) ---
+# --- القسم الثالث: تحرير الفواتير (النسخة 8 الأصلية) ---
 elif choice == texts[L]["menu"][2]:
     st.subheader(texts[L]["invoice_header"])
     c_name = st.text_input("اسم الزبون / Client Name:")
