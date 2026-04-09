@@ -1,90 +1,131 @@
 import streamlit as st
 import pandas as pd
 import requests
+from datetime import datetime
+import io
 
 # 1. الإعدادات الأساسية
-st.set_page_config(page_title="Pro Electric v29", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="منصة الكهربائي المحترف v29", page_icon="⚡", layout="wide")
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-# 2. الكاتالوج (مختصر هنا للسرعة، ابقِ النسخة الكاملة عندك)
+# 2. الكاتالوج الشامل للمواد الكهربائية في تونس (النسخة الكاملة)
 CATALOGUE = {
-    "🛠️ التأسيس": {"Foureau 16mm": 38.000, "Boite Encastrement": 0.450},
-    "🔌 الكابلات": {"Câble 1.5mm": 65.000, "Câble 2.5mm": 105.000},
-    "📟 الطابلو": {"Hager 16A": 9.800, "Diff 40A": 95.000}
-}
-
-# 3. الترجمة
-translations = {
-    "🇹🇳 العربية/تونسية": {
-        "menu": ["🤖 الخبير", "🧮 الحاسبة", "📄 الفاتورة", "📏 الخراطيم"],
-        "inv_header": "📄 تحرير وتحميل الفاتورة",
-        "download_csv": "📥 تحميل الفاتورة (Excel/CSV)",
-        "download_txt": "📄 حفظ كملف نصي (للإرسال)",
-        "total": "المجموع الجملي"
+    "🛠️ التأسيس (Gaines & Boites)": {
+        "Foureau Orange 11mm (50m)": 28.500, "Foureau Orange 13mm (50m)": 32.800,
+        "Foureau Orange 16mm (50m)": 38.000, "Foureau Orange 20mm (50m)": 48.500,
+        "Foureau Noir (Béton) 16mm": 42.000, "Foureau Noir (Béton) 20mm": 52.000,
+        "Boite Encastrement 1 Poste": 0.450, "Boite Encastrement 3 Postes": 1.250,
+        "Boite Dérivation Carrée 100x100": 2.800
     },
-    "🇫🇷 Français": {
-        "menu": ["🤖 AI", "🧮 Calc", "📄 Facture", "📏 Gaines"],
-        "inv_header": "📄 Créer et Télécharger le Devis",
-        "download_csv": "📥 Télécharger (Excel/CSV)",
-        "download_txt": "📄 Sauvegarder (Texte)",
-        "total": "Total Général"
+    "🔌 الأسلاك والكابلات (Câbles)": {
+        "Tunisie Câbles 1.5mm² (100m)": 65.000, "Tunisie Câbles 2.5mm² (100m)": 105.000,
+        "Tunisie Câbles 4mm² (100m)": 165.000, "Tunisie Câbles 6mm² (100m)": 240.000,
+        "Câble Racle 4x10mm (1m)": 14.500, "Câble Souple 2x1.5mm (1m)": 2.200
+    },
+    "📟 لوحة القواطع (Tableau Hager)": {
+        "Hager 10A (Eclairage)": 10.500, "Hager 16A (Prise)": 9.800,
+        "Hager 20A (Clim/Four)": 9.800, "Différentiel Hager 40A 30mA": 95.000,
+        "Coffret Hager 12M": 75.000, "Coffret Hager 24M": 145.000,
+        "Peigne Phase/Neutre": 18.000
+    },
+    "🏠 المفاتيح (Appareillage Valena)": {
+        "Prise 2P+T Valena": 11.200, "Interrupteur Simple": 8.500,
+        "Va-et-Vient Simple": 10.200, "Bouton Poussoir": 11.500,
+        "Plaque Valena 1 Poste": 1.800
     }
 }
 
-selected_lang = st.sidebar.selectbox("🌐 اللغة", list(translations.keys()))
+# 3. نظام الترجمة الاحترافي
+translations = {
+    "🇹🇳 العربية/تونسية": {
+        "menu": ["🤖 استشارة الخبير", "🧮 حاسبة القياسات", "📄 قائمة المواد", "📏 دليل الخراطيم والألوان"],
+        "ai_header": "🤖 خبير الكهرباء الذكي", "ai_placeholder": "اسأل بالدارجة التقنية...",
+        "calc_header": "🧮 حاسبة مقاطع الأسلاك", "inv_header": "📄 تحرير وتحميل الفاتورة",
+        "f_label": "قطر الفورو (مم):", "w_label": "نوع السلك:", "wires": "أسلاك",
+        "res_label": "⚠️ السعة القصوى لسحب سهل:", "color_title": "🎨 دليل ألوان الأسلاك",
+        "prompt": "أنت خبير كهرباء تونسي محترف. أجب بالدارجة التقنية.",
+        "btn_send": "إرسال 🚀", "add_btn": "إضافة للفاتورة", "total": "المجموع الجملي",
+        "download_btn": "📥 تحميل الفاتورة (Excel/CSV)"
+    },
+    "🇫🇷 Français": {
+        "menu": ["🤖 Consultation AI", "🧮 Calculateur", "📄 Facture", "📏 Guide Gaines"],
+        "ai_header": "🤖 Expert AI", "ai_placeholder": "Posez votre question...",
+        "calc_header": "🧮 Calculateur de Section", "inv_header": "📄 Devis & Export",
+        "f_label": "Diamètre (mm):", "w_label": "Type de fil:", "wires": "fils",
+        "res_label": "⚠️ Capacité max:", "color_title": "🎨 Code Couleurs",
+        "prompt": "Tu es un expert électricien. Réponds en français technique.",
+        "btn_send": "Analyser 🚀", "add_btn": "Ajouter au devis", "total": "Total Général",
+        "download_btn": "📥 Télécharger le Devis (Excel)"
+    }
+}
+
+# اختيار اللغة وإدارة الحالة
+selected_lang = st.sidebar.selectbox("🌐 اللغة / Langue", list(translations.keys()))
 T = translations[selected_lang]
 if 'invoice' not in st.session_state: st.session_state['invoice'] = []
 
-choice = st.sidebar.radio("🛠️", T["menu"])
+choice = st.sidebar.radio("🛠️ الأدوات", T["menu"])
 
-# --- قسم الفاتورة المطور (التحميل والحفظ) ---
-if choice == T["menu"][2]:
+# --- 1. الخبير (نظام المحاولات المتعددة) ---
+if choice == T["menu"][0]:
+    st.header(T["ai_header"])
+    query = st.text_area("", placeholder=T["ai_placeholder"], height=150)
+    if st.button(T["btn_send"]):
+        if query and API_KEY:
+            with st.spinner("جاري الاتصال..."):
+                models = ["gemini-2.0-flash", "gemini-1.5-flash"]
+                success = False
+                for model in models:
+                    if success: break
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={API_KEY}"
+                    try:
+                        res = requests.post(url, json={"contents": [{"parts": [{"text": f"{T['prompt']} : {query}"}]}]})
+                        if res.status_code == 200:
+                            st.success(res.json()['candidates'][0]['content']['parts'][0]['text'])
+                            success = True
+                    except: continue
+                if not success: st.error("السيرفر مشغول حالياً، حاول لاحقاً.")
+
+# --- 2. الحاسبة ---
+elif choice == T["menu"][1]:
+    st.header(T["calc_header"])
+    watt = st.number_input("Watt:", min_value=0, value=2000)
+    amp = watt / 220
+    st.metric("Ampère", f"{amp:.2f} A")
+    wire = "1.5mm²" if amp <= 11 else "2.5mm²" if amp <= 17 else "4mm²+"
+    st.info(f"النتيجة: {wire}")
+
+# --- 3. الفاتورة (مع التحميل) ---
+elif choice == T["menu"][2]:
     st.header(T["inv_header"])
-    
     col1, col2 = st.columns(2)
     with col1:
         cat = st.selectbox("الفئة", list(CATALOGUE.keys()))
         item = st.selectbox("المادة", list(CATALOGUE[cat].keys()))
     with col2:
         qte = st.number_input("الكمية", min_value=1, value=1)
-        if st.button("إضافة ➕"):
-            price = CATALOGUE[cat][item]
-            st.session_state['invoice'].append({"المادة/Article": item, "الكمية/Qty": qte, "الثمن/Price": price, "المجموع/Total": qte * price})
+        if st.button(T["add_btn"]):
+            st.session_state['invoice'].append({"المادة": item, "الكمية": qte, "الثمن": CATALOGUE[cat][item], "المجموع": qte * CATALOGUE[cat][item]})
             st.rerun()
-
+    
     if st.session_state['invoice']:
-        st.write("---")
         df = pd.DataFrame(st.session_state['invoice'])
         st.table(df)
+        total_val = df["المجموع"].sum()
+        st.success(f"{T['total']}: {total_val:.3f} DT")
         
-        total_val = df["المجموع/Total"].sum()
-        st.markdown(f"### {T['total']}: :green[{total_val:.3f} DT]")
-        
-        # --- أزرار التحميل الجديدة ---
-        st.write("### 💾 خيارات الحفظ والتحميل:")
-        
-        # 1. التحميل كـ CSV (يفتح في Excel)
+        # زر التحميل
         csv = df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button(
-            label=T["download_csv"],
-            data=csv,
-            file_name=f"Devis_Electricite_{datetime.now().strftime('%d_%m_%Y')}.csv",
-            mime='text/csv',
-        )
-        
-        # 2. التحميل كملف نصي بسيط (سهل للإرسال في الواتساب أو الإيميل)
-        txt_content = f"--- Devis Électrique ---\nDate: {datetime.now()}\n\n"
-        for i, row in df.iterrows():
-            txt_content += f"- {row['المادة/Article']} x{row['الكمية/Qty']}: {row['المجموع/Total']:.3f} DT\n"
-        txt_content += f"\nTotal: {total_val:.3f} DT"
-        
-        st.download_button(
-            label=T["download_txt"],
-            data=txt_content,
-            file_name="Devis.txt",
-            mime='text/plain',
-        )
+        st.download_button(label=T["download_btn"], data=csv, file_name=f"Devis_{datetime.now().strftime('%d_%m')}.csv", mime='text/csv')
+        if st.button("🗑️ Reset"): st.session_state['invoice'] = []; st.rerun()
 
-        if st.button("🗑️ مسح الكل"):
-            st.session_state['invoice'] = []
-            st.rerun()
+# --- 4. الدليل ---
+elif choice == T["menu"][3]:
+    st.header(T["menu"][3])
+    c1, c2 = st.columns(2)
+    with c1:
+        g_size = st.selectbox(T["f_label"], [11, 13, 16, 20, 25])
+        st.warning(f"{T['res_label']} 3-5 {T['wires']}")
+    with c2:
+        st.subheader(T["color_title"])
+        st.code("🔵 Neutre\n🔴 Phase\n🟡🟢 Terre")
