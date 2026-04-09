@@ -5,119 +5,142 @@ import requests
 import json
 
 # 1. إعدادات الصفحة
-st.set_page_config(page_title="منصة الكهربائي المحترف", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Pro Electric Platform", page_icon="⚡", layout="wide")
 
 # 2. جلب المفتاح السري
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-# 3. قاعدة بيانات المواد التونسية (الأسعار تقديرية بالدينار)
-DB_MATERIELS = {
-    "Foureau Orange 11mm (Rouleau)": 28.500,
-    "Foureau Orange 13mm (Rouleau)": 32.800,
-    "Foureau Orange 16mm (Rouleau)": 38.000,
-    "Foureau Orange 20mm (Rouleau)": 48.500,
-    "Foureau Noir (Béton) 16mm": 42.000,
-    "Hager: Disjoncteur DPN 10A": 10.500,
-    "Hager: Disjoncteur DPN 16A": 9.800,
-    "Hager: Disjoncteur DPN 20A": 9.800,
-    "Hager: Différentiel 40A 30mA": 95.000,
-    "Hager: Coffret Encastré 24M": 145.000,
-    "Tunisie Câbles: 1.5mm² (100m)": 65.000,
-    "Tunisie Câbles: 2.5mm² (100m)": 105.000,
-    "Legrand Valena: Prise 2P+T": 11.200,
-    "Générale: Boite Encastrement 3M": 0.900,
-    "Spot LED 7W Encastré": 6.800
+# 3. نظام الترجمة الكامل (عربي/تونسية، فرنسية، إنجليزية)
+translations = {
+    "🇹🇳 العربية/تونسية": {
+        "title": "⚡ منصة الكهربائي المحترف",
+        "sidebar_title": "🛠️ لوحة التحكم",
+        "menu": ["🤖 استشارة الخبير", "🧮 حاسبة القياسات", "📄 نظام الفواتير"],
+        "ai_header": "🤖 خبير الكهرباء الذكي (تونس)",
+        "ai_info": "اسأل الخبير بالدارجة التونسية أو العربية التقنية",
+        "ai_placeholder": "مثلاً: كيفاش نركب لوحة قواطع (Tableau)؟",
+        "btn_send": "تحليل وإجابة 🚀",
+        "calc_header": "🧮 حاسبة مقاطع الأسلاك (Câbles)",
+        "watt_label": "قوة الجهاز (Watt):",
+        "invoice_header": "📄 تحرير فاتورة تقديرية (Devis)",
+        "add_item": "إضافة مادة للفاتورة",
+        "search_label": "🔍 ابحث عن مادة (فورو، كابل...):",
+        "total_label": "المجموع الجملي",
+        "table_cols": ["المادة", "الكمية", "الثمن", "المجموع"],
+        "prompt": "أنت خبير كهرباء تونسي محترف جداً. أجب بمزيج من اللغة العربية الفصحى والدارجة التونسية التقنية (مثلاً استعمل كلمات: فورو، ديفيرونسيال، تيليريبتور). اجعل شرحك مفصلاً وسهلاً للصنايعية."
+    },
+    "🇫🇷 Français": {
+        "title": "⚡ Plateforme Électricien Pro",
+        "sidebar_title": "🛠️ Tableau de Bord",
+        "menu": ["🤖 Consultation AI", "🧮 Calculateur", "📄 Système de Factures"],
+        "ai_header": "🤖 Expert Électricien AI",
+        "ai_info": "Posez vos questions techniques en Français",
+        "ai_placeholder": "Ex: Comment brancher un va-et-vient ?",
+        "btn_send": "Analyser 🚀",
+        "calc_header": "🧮 Calcul de Section de Câble",
+        "watt_label": "Puissance (Watt) :",
+        "invoice_header": "📄 Créer un Devis Professionnel",
+        "add_item": "Ajouter au devis",
+        "search_label": "🔍 Chercher un article :",
+        "total_label": "Total Général",
+        "table_cols": ["Article", "Qté", "Prix U", "Total"],
+        "prompt": "Tu es un expert électricien senior. Réponds en français technique précis, avec des conseils de sécurité et des normes (NF C 15-100)."
+    },
+    "🇺🇸 English": {
+        "title": "⚡ Pro Electric Master",
+        "sidebar_title": "🛠️ Control Panel",
+        "menu": ["🤖 AI Consultation", "🧮 Cable Calculator", "📄 Invoice System"],
+        "ai_header": "🤖 AI Electrical Expert",
+        "ai_info": "Ask technical questions in English",
+        "ai_placeholder": "Ex: How to calculate voltage drop?",
+        "btn_send": "Ask Expert 🚀",
+        "calc_header": "🧮 Cable Size Calculator",
+        "watt_label": "Load Power (Watt):",
+        "invoice_header": "📄 Generate Quote",
+        "add_item": "Add to Quote",
+        "search_label": "🔍 Search items:",
+        "total_label": "Grand Total",
+        "table_cols": ["Item", "Qty", "Price", "Total"],
+        "prompt": "You are a professional electrical engineer. Provide technical answers in English, focusing on international standards and efficiency."
+    }
 }
 
-# 4. ذاكرة الجلسة للفاتورة
-if 'invoice_items' not in st.session_state:
-    st.session_state['invoice_items'] = []
+# 4. اختيار اللغة
+selected_lang = st.sidebar.selectbox("🌐 Choose Language / اختر اللغة", list(translations.keys()))
+T = translations[selected_lang]
 
-# 5. القائمة الجانبية (Sidebar)
-st.sidebar.title("🛠️ لوحة التحكم")
-lang = st.sidebar.selectbox("🌐 اللغة", ["🇹🇳 تونسية", "🇫🇷 Français"])
-choice = st.sidebar.radio("القائمة الرئيسية", ["🤖 استشارة الخبير", "🧮 حاسبة القياسات", "📄 نظام الفواتير"])
+# 5. قاعدة البيانات التونسية
+DB_MATERIELS = {
+    "Foureau Orange 11mm": 28.500, "Foureau Orange 13mm": 32.800,
+    "Foureau Orange 16mm": 38.000, "Foureau Orange 20mm": 48.500,
+    "Hager: Disjoncteur 16A": 9.800, "Tunisie Câbles: 1.5mm": 65.000,
+    "Legrand Valena: Prise": 11.200, "Hager: Diff 40A": 95.000
+}
 
-# --- القسم 1: استشارة الخبير (النسخة المستقرة 2.0) ---
-if choice == "🤖 استشارة الخبير":
-    st.header("🤖 خبير الكهرباء الذكي")
-    st.info("اسأل الخبير على أي مشكلة تقنية (تكلم بالدارجة التونسية)")
+if 'invoice_data' not in st.session_state:
+    st.session_state['invoice_data'] = []
+
+# 6. بناء الواجهة حسب اللغة المختارة
+st.sidebar.title(T["sidebar_title"])
+choice = st.sidebar.radio("", T["menu"])
+
+# --- القسم 1: استشارة الخبير (موديل 2.0 المستقر) ---
+if choice == T["menu"][0]:
+    st.header(T["ai_header"])
+    st.info(T["ai_info"])
+    query = st.text_area("", placeholder=T["ai_placeholder"], height=150)
     
-    query = st.text_area("اشرح المشكلة هنا:", height=150, placeholder="مثلاً: كيفاش نركب تيليريبتور (Télérupteur)؟")
-    
-    if st.button("تحليل وإجابة 🚀"):
-        if not API_KEY:
-            st.error("❌ المفتاح ناقص في الإعدادات!")
-        elif query:
-            with st.spinner("الخبير يفكر..."):
+    if st.button(T["btn_send"]):
+        if query and API_KEY:
+            with st.spinner("..."):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
-                payload = {"contents": [{"parts": [{"text": f"أنت خبير كهرباء تونسي محترف. أجب بالدارجة التونسية التقنية: {query}"}]}]}
+                payload = {"contents": [{"parts": [{"text": f"{T['prompt']} : {query}"}]}]}
                 try:
-                    res = requests.post(url, json=payload, timeout=15)
+                    res = requests.post(url, json=payload, timeout=20)
                     if res.status_code == 200:
-                        st.markdown("### 💡 نصيحة الخبير:")
+                        st.markdown("---")
                         st.success(res.json()['candidates'][0]['content']['parts'][0]['text'])
                     elif res.status_code == 429:
-                        st.warning("⚠️ السيرفر مشغول (كثير من الطلبات). انتظر 30 ثانية وعاود اضغط.")
-                    else:
-                        st.error(f"خطأ من السيرفر: {res.status_code}")
+                        st.warning("⚠️ Quota Full! Please wait 30-60 seconds and retry.")
                 except:
-                    st.error("📡 فشل الاتصال بالانترنت.")
+                    st.error("Connection Error.")
 
 # --- القسم 2: حاسبة القياسات ---
-elif choice == "🧮 حاسبة القياسات":
-    st.header("🧮 حاسبة مقاطع الأسلاك")
+elif choice == T["menu"][1]:
+    st.header(T["calc_header"])
+    watt = st.number_input(T["watt_label"], min_value=0, value=2000)
+    amp = watt / 220
+    st.metric("Current (A)", f"{amp:.2f} A")
+    # منطق اختيار السلك
+    wire = "1.5mm²" if amp <= 11 else "2.5mm²" if amp <= 17 else "4mm²+"
+    st.info(f"Recommended: {wire}")
+
+# --- القسم 3: نظام الفواتير ---
+elif choice == T["menu"][2]:
+    st.header(T["invoice_header"])
+    search = st.text_input(T["search_label"])
+    filtered = [k for k in DB_MATERIELS.keys() if search.lower() in k.lower()]
+    
     col1, col2 = st.columns(2)
     with col1:
-        watt = st.number_input("قوة الجهاز (Watt):", min_value=0, value=2000, step=100)
+        prod = st.selectbox("Item:", filtered if filtered else list(DB_MATERIELS.keys()))
     with col2:
-        volt = 220
-        amp = watt / volt
-        st.metric("التيار (Ampère)", f"{amp:.2f} A")
+        qte = st.number_input("Qty:", min_value=1, value=1)
     
-    st.write("---")
-    if amp <= 11:
-        st.success("✅ السلك المناسب: 1.5 مم² | Disjoncteur: 10A")
-    elif amp <= 17:
-        st.success("✅ السلك المناسب: 2.5 مم² | Disjoncteur: 16A أو 20A")
-    elif amp <= 24:
-        st.warning("⚠️ السلك المناسب: 4 مم² | Disjoncteur: 25A")
-    else:
-        st.error("🚨 حمل كبير! تحتاج سلك 6 مم² فما فوق.")
+    if st.button(T["add_item"]):
+        st.session_state['invoice_data'].append({
+            T["table_cols"][0]: prod,
+            T["table_cols"][1]: qte,
+            T["table_cols"][2]: DB_MATERIELS[prod],
+            T["table_cols"][3]: qte * DB_MATERIELS[prod]
+        })
+        st.rerun()
 
-# --- القسم 3: نظام الفواتير المطور ---
-elif choice == "📄 نظام الفواتير":
-    st.header("📄 تحرير فاتورة تقديرية (Devis)")
-    
-    with st.expander("➕ إضافة سلعة للفاتورة", expanded=True):
-        search = st.text_input("🔍 ابحث عن مادة (فورو، كابل، هاجر...):")
-        filtered_items = [k for k in DB_MATERIELS.keys() if search.lower() in k.lower()]
-        
-        selected_prod = st.selectbox("المادة:", filtered_items if filtered_items else list(DB_MATERIELS.keys()))
-        qte = st.number_input("الكمية:", min_value=1, value=1)
-        price = st.number_input("ثمن الوحدة (DT):", value=DB_MATERIELS[selected_prod], format="%.3f")
-        
-        if st.button("إضافة للفاتورة ➕"):
-            st.session_state['invoice_items'].append({
-                "المادة": selected_prod,
-                "الكمية": qte,
-                "الثمن": price,
-                "المجموع": qte * price
-            })
-            st.rerun()
-
-    if st.session_state['invoice_items']:
-        st.write("---")
-        df = pd.DataFrame(st.session_state['invoice_items'])
+    if st.session_state['invoice_data']:
+        df = pd.DataFrame(st.session_state['invoice_data'])
         st.table(df)
-        
-        total = df["المجموع"].sum()
-        st.markdown(f"## المجموع الجملي: :green[{total:.3f} DT]")
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("🗑️ مسح الفاتورة"):
-                st.session_state['invoice_items'] = []
-                st.rerun()
-        with c2:
-            st.download_button("📥 تحميل الفاتورة (CSV)", df.to_csv(index=False), "devis.csv")
+        total = df[T["table_cols"][3]].sum()
+        st.markdown(f"### {T['total_label']}: :green[{total:.3f} DT]")
+        if st.button("🗑️ Reset"):
+            st.session_state['invoice_data'] = []
+            st.rerun()
