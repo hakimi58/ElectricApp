@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import requests
 
 # 1. إعدادات الصفحة
 st.set_page_config(page_title="منصة الكهربائي المحترف", page_icon="⚡", layout="wide")
 
-# 2. الأسعار التقريبية (تلقائية)
+# 2. الأسعار التلقائية
 HAKIM_PRICES = {
     "Boite encastré 3 M": 0.850, "Boite encastré 4 M": 1.200, "Boite encastré 6 M": 1.800,
     "Coffret 24 module Hager": 145.000, "Monture 3 modules sys43": 2.400, "Monture 4 modules sys43": 3.200,
@@ -17,68 +16,61 @@ HAKIM_PRICES = {
     "Domino 35": 3.200, "Tolésolon": 1.500
 }
 
-# 3. تهيئة سلة المشتريات (هذا هو السّر لكي لا تختفي المواد)
+# 3. التأكد من وجود "المخزن" (session_state) لجمع المواد
 if 'invoice_list' not in st.session_state:
-    st.session_state.invoice_list = []
+    st.session_state['invoice_list'] = []
 
-# 4. اختيار اللغة
-L_key = st.sidebar.selectbox("🌐 اللغة", ["🇹🇳 تونسية", "🇫🇷 Français", "🇺🇸 English"])
-
-# 5. القائمة الجانبية
+# 4. اختيار اللغة والقائمة الجانبية
+L_key = st.sidebar.selectbox("🌐 اللغة", ["🇹🇳 تونسية", "🇫🇷 Français"])
 menu = ["استشارة الخبير (AI)", "حاسبة القياسات", "نظام الفواتير"]
 choice = st.sidebar.radio("🛠️ الأدوات", menu)
 
+# --- نظام الفواتير (المطور ليجمع المواد) ---
 if choice == menu[2]:
-    st.markdown("### 📋 نموذج فاتورة احترافي")
+    st.markdown("### 📋 نموذج فاتورة المحلات التونسية")
     
     # واجهة الإضافة
-    with st.form("add_form", clear_on_submit=True):
+    with st.container():
         c1, c2, c3 = st.columns([2, 1, 1])
         with c1:
-            prod = st.selectbox("Désignation (المادة):", list(HAKIM_PRICES.keys()))
+            prod = st.selectbox("المادة (Désignation):", list(HAKIM_PRICES.keys()))
         with c2:
             qte = st.number_input("الكمية:", min_value=1, value=1)
         with c3:
             price = st.number_input("الثمن (DT):", min_value=0.0, value=HAKIM_PRICES[prod], format="%.3f")
         
-        submit = st.form_submit_button("إضافة المادة ➕")
-        
-        if submit:
-            # إضافة المادة للقائمة الموجودة مسبقاً
-            st.session_state.invoice_list.append({
+        if st.button("إضافة المادة للجدول ➕", use_container_width=True):
+            # إضافة السطر الجديد للمخزن
+            new_item = {
                 "المادة": prod,
                 "الكمية": qte,
-                "الثمن الوحدوي": f"{price:.3f}",
+                "الثمن الوحدوي": price,
                 "المجموع": qte * price
-            })
+            }
+            st.session_state['invoice_list'].append(new_item)
             st.rerun()
 
-    # عرض الفاتورة الكاملة
-    if st.session_state.invoice_list:
-        st.markdown("---")
-        st.markdown(f"**التاريخ:** {datetime.now().strftime('%d/%m/%Y')} | **الزبون:** السيد ....................")
+    # عرض الجدول الكامل (الذي يحتوي على كل المواد المضافة)
+    if st.session_state['invoice_list']:
+        st.write("---")
+        st.markdown(f"**التاريخ:** {datetime.now().strftime('%d/%m/%Y')}")
         
-        # تحويل القائمة إلى جدول عرض
-        df = pd.DataFrame(st.session_state.invoice_list)
-        df.index += 1
+        # تحويل المخزن إلى جدول
+        df = pd.DataFrame(st.session_state['invoice_list'])
+        df.index += 1 # ترقيم الأسطر
         
-        # عرض الجدول بشكل المحلات (كل المواد تظهر هنا)
-        st.table(df)
+        # عرض الجدول (كما في المحلات)
+        st.table(df.style.format({"الثمن الوحدوي": "{:.3f}", "المجموع": "{:.3f}"}))
 
-        # المجموع النهائي
-        total_ttc = sum(float(item["المجموع"]) for item in st.session_state.invoice_list)
+        # المجموع الجملي في الأسفل
+        total_ttc = sum(item["المجموع"] for item in st.session_state['invoice_list'])
         
         st.markdown(f"""
-        <div style="background-color: #2c3e50; padding: 15px; border-radius: 8px; text-align: center;">
-            <h2 style="color: #f39c12; margin: 0;">المجموع الجملي: {total_ttc:.3f} DT</h2>
+        <div style="background-color: #f1f3f4; padding: 20px; border: 2px solid #2c3e50; border-radius: 10px; text-align: center;">
+            <h2 style="color: #2c3e50; margin: 0;">المجموع الجملي الصافي: {total_ttc:.3f} DT</h2>
         </div>
         """, unsafe_allow_html=True)
 
-        # أزرار الإدارة
-        col_del, col_down = st.columns(2)
-        with col_del:
-            if st.button("🗑️ مسح الفاتورة والبدء من جديد"):
-                st.session_state.invoice_list = []
-                st.rerun()
-        with col_down:
-            st.download_button("📥 تحميل الفاتورة", df.to_csv(), file_name="devis.csv")
+        if st.button("🗑️ مسح الفاتورة بالكامل"):
+            st.session_state['invoice_list'] = []
+            st.rerun()
