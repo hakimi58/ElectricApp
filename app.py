@@ -3,119 +3,94 @@ import pandas as pd
 import requests
 
 # 1. الإعدادات الأساسية
-st.set_page_config(page_title="منصة الكهربائي المحترف 2026", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Pro Electric Platform", page_icon="⚡", layout="wide")
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-# 2. الكاتالوج الشامل
+# 2. الكاتالوج
 CATALOGUE = {
-    "🛠️ التأسيس (Gaines & Boites)": {
-        "Foureau Orange 11mm (50m)": 28.500, "Foureau Orange 13mm (50m)": 32.800,
-        "Foureau Orange 16mm (50m)": 38.000, "Foureau Orange 20mm (50m)": 48.500,
-        "Foureau Noir (Béton) 16mm": 42.000, "Foureau Noir (Béton) 20mm": 52.000,
-        "Boite Encastrement 1 Poste": 0.450, "Boite Encastrement 3 Postes": 1.250
-    },
-    "🔌 الأسلاك والكابلات (Câbles)": {
-        "Tunisie Câbles 1.5mm² (100m)": 65.000, "Tunisie Câbles 2.5mm² (100m)": 105.000,
-        "Tunisie Câbles 4mm² (100m)": 165.000, "Tunisie Câbles 6mm² (100m)": 240.000,
-        "Câble Racle 4x10mm (1m)": 14.500, "Câble Souple 2x1.5mm (1m)": 2.200
-    },
-    "📟 لوحة القواطع (Hager)": {
-        "Hager 10A (Eclairage)": 10.500, "Hager 16A (Prise)": 9.800,
-        "Hager 20A (Clim/Four)": 9.800, "Différentiel Hager 40A 30mA": 95.000,
-        "Coffret Hager 12M": 75.000, "Coffret Hager 24M": 145.000
-    },
-    "🏠 المفاتيح (Appareillage)": {
-        "Prise 2P+T Valena": 11.200, "Interrupteur Simple": 8.500,
-        "Va-et-Vient Simple": 10.200, "Plaque Valena 1 Poste": 1.800
-    }
+    "🛠️ T تأسيس (Gaines)": {"Foureau Orange 16mm": 38.000, "Foureau Noir 20mm": 52.000, "Boite Encastrement": 0.450},
+    "🔌 C كابلات (Câbles)": {"Tunisie Câbles 1.5mm": 65.000, "Tunisie Câbles 2.5mm": 105.000},
+    "📟 T طابلو (Hager)": {"Hager 16A": 9.800, "Diff 40A": 95.000, "Coffret 24M": 145.000}
 }
 
-# 3. نظام اللغات
+# 3. نظام اللغات الاحترافي (تعريب وترجمة كل شيء)
 translations = {
     "🇹🇳 العربية/تونسية": {
         "menu": ["🤖 استشارة الخبير", "🧮 حاسبة القياسات", "📄 قائمة المواد", "📏 دليل الخراطيم والألوان"],
-        "prompt": "أنت خبير كهرباء تونسي محترف. أجب بالدارجة التقنية.",
-        "calc_foureau": "📐 حاسبة سعة الفورو",
-        "color_code": "🎨 دليل ألوان الأسلاك"
+        "f_label": "قطر الفورو (مم):",
+        "w_label": "نوع السلك:",
+        "res_label": "⚠️ السعة القصوى المقترحة لسحب سهل:",
+        "wires": "أسلاك",
+        "color_title": "🎨 دليل ألوان الأسلاك",
+        "note": "💡 ملاحظة: الالتزام بالألوان يسهل عملية الصيانة.",
+        "p": "أنت خبير كهرباء تونسي محترف. أجب بالدارجة التقنية."
     },
     "🇫🇷 Français": {
         "menu": ["🤖 Consultation AI", "🧮 Calculateur", "📄 Catalogue", "📏 Guide Gaines & Couleurs"],
-        "prompt": "Tu es un expert électricien. Réponds en français technique.",
-        "calc_foureau": "📐 Capacité des Gaines",
-        "color_code": "🎨 Code Couleurs"
+        "f_label": "Diamètre de gaine (mm):",
+        "w_label": "Type de fil:",
+        "res_label": "⚠️ Capacité max suggérée pour un tirage facile:",
+        "wires": "fils",
+        "color_title": "🎨 Code Couleurs des Fils",
+        "note": "💡 Note: Le respect des couleurs facilite la maintenance.",
+        "p": "Tu es un expert électricien. Réponds en français technique."
     },
     "🇺🇸 English": {
         "menu": ["🤖 AI Consultation", "🧮 Calculator", "📄 Catalogue", "📏 Conduit & Color Guide"],
-        "prompt": "You are a professional electrical engineer. Answer in technical English.",
-        "calc_foureau": "📐 Conduit Capacity",
-        "color_code": "🎨 Wire Color Codes"
+        "f_label": "Conduit Diameter (mm):",
+        "w_label": "Wire Type:",
+        "res_label": "⚠️ Suggested max capacity for easy pulling:",
+        "wires": "wires",
+        "color_title": "🎨 Wire Color Codes",
+        "note": "💡 Note: Color compliance simplifies maintenance.",
+        "p": "You are a professional electrical engineer. Answer in English."
     }
 }
 
-# اختيار اللغة
-selected_lang = st.sidebar.selectbox("🌐 اللغة / Language", list(translations.keys()))
+selected_lang = st.sidebar.selectbox("🌐 Choose Language", list(translations.keys()))
 T = translations[selected_lang]
 if 'invoice' not in st.session_state: st.session_state['invoice'] = []
+choice = st.sidebar.radio("🛠️", T["menu"])
 
-choice = st.sidebar.radio("🛠️ الأدوات", T["menu"])
-
-# --- 1. الخبير ---
+# --- القسم 1 و 2 و 3 (مختصرة لضمان عمل الرابط) ---
 if choice == T["menu"][0]:
-    st.header(T["menu"][0])
-    query = st.text_area("اسأل خبيرك:")
-    if st.button("إرسال"):
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
-        payload = {"contents": [{"parts": [{"text": f"{T['prompt']} : {query}"}]}]}
-        res = requests.post(url, json=payload)
+    q = st.text_area(T["menu"][0]); 
+    if st.button("OK"):
+        res = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}", json={"contents": [{"parts": [{"text": f"{T['p']} : {q}"}]}]})
         if res.status_code == 200: st.success(res.json()['candidates'][0]['content']['parts'][0]['text'])
 
-# --- 2. الحاسبة ---
 elif choice == T["menu"][1]:
-    st.header(T["menu"][1])
-    watt = st.number_input("Watt:", value=2000)
-    amp = watt / 220
-    st.metric("Ampère", f"{amp:.2f} A")
-    wire = "1.5mm²" if amp <= 11 else "2.5mm²" if amp <= 17 else "4mm²+"
-    st.info(f"النتيجة: {wire}")
+    w = st.number_input("Watt:", value=2000); st.metric("Ampère", f"{w/220:.2f} A")
 
-# --- 3. الفاتورة ---
 elif choice == T["menu"][2]:
-    st.header(T["menu"][2])
-    cat = st.selectbox("الفئة", list(CATALOGUE.keys())); item = st.selectbox("المادة", list(CATALOGUE[cat].keys()))
-    qte = st.number_input("الكمية", min_value=1, value=1)
-    if st.button("إضافة"):
-        st.session_state['invoice'].append({"المادة": item, "الكمية": qte, "الثمن": CATALOGUE[cat][item], "المجموع": qte * CATALOGUE[cat][item]})
-    if st.session_state['invoice']:
-        st.table(pd.DataFrame(st.session_state['invoice']))
-        st.success(f"المجموع: {sum(i['المجموع'] for i in st.session_state['invoice']):.3f} DT")
+    st.header(T["menu"][2]); cat = st.selectbox("Cat", list(CATALOGUE.keys())); it = st.selectbox("Item", list(CATALOGUE[cat].keys()))
+    if st.button("+"): st.session_state['invoice'].append({"Item": it, "Total": CATALOGUE[cat][it]})
+    if st.session_state['invoice']: st.table(pd.DataFrame(st.session_state['invoice']))
 
-# --- 4. الأداة الجديدة: دليل الخراطيم والألوان ---
+# --- القسم 4: المصحح لغوياً بالكامل ---
 elif choice == T["menu"][3]:
-    st.header(T["calc_foureau"])
+    st.header(T["menu"][3])
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader(T["calc_foureau"])
-        gaine_size = st.selectbox("قطر الفورو (mm):", [11, 13, 16, 20, 25])
-        wire_type = st.selectbox("نوع السلك:", ["1.5 mm²", "2.5 mm²", "4 mm²", "6 mm²"])
+        g_size = st.selectbox(T["f_label"], [11, 13, 16, 20, 25])
+        w_type = st.selectbox(T["w_label"], ["1.5 mm²", "2.5 mm²", "4 mm²", "6 mm²"])
         
-        # قاعدة تقريبية للسعة (قاعدة 1/3 لسهولة السحب)
         capacities = {
-            11: {"1.5 mm²": 3, "2.5 mm²": 2},
-            13: {"1.5 mm²": 4, "2.5 mm²": 3},
+            11: {"1.5 mm²": 3, "2.5 mm²": 2}, 13: {"1.5 mm²": 4, "2.5 mm²": 3},
             16: {"1.5 mm²": 5, "2.5 mm²": 4, "4 mm²": 3},
             20: {"1.5 mm²": 7, "2.5 mm²": 6, "4 mm²": 5, "6 mm²": 4},
             25: {"1.5 mm²": 10, "2.5 mm²": 9, "4 mm²": 7, "6 mm²": 6}
         }
-        max_wires = capacities.get(gaine_size, {}).get(wire_type, "غير محدد")
-        st.warning(f"⚠️ السعة القصوى المقترحة لسحب سهل: {max_wires} أسلاك.")
+        max_w = capacities.get(g_size, {}).get(w_type, "?")
+        st.warning(f"{T['res_label']} {max_w} {T['wires']}.")
 
     with col2:
-        st.subheader(T["color_code"])
-        st.code("""
-        🔵 Neutre (محايد)  --> Bleu
-        🔴 Phase (فاز)     --> Rouge / Noir / Marron
-        🟡🟢 Terre (أرضي)  --> Jaune & Vert
-        🟣 Navettes       --> Violet / Orange
-        """)
-        st.info("💡 ملاحظة: الالتزام بالألوان يسهل عملية الصيانة ويحمي من الأخطار.")
+        st.subheader(T["color_title"])
+        if selected_lang == "🇫🇷 Français":
+            st.code("🔵 Neutre --> Bleu\n🔴 Phase  --> Rouge/Noir\n🟡🟢 Terre --> Jaune/Vert")
+        elif selected_lang == "🇺🇸 English":
+            st.code("🔵 Neutral --> Blue\n🔴 Phase   --> Red/Black\n🟡🟢 Ground  --> Yellow/Green")
+        else:
+            st.code("🔵 محايد (Neutre) --> أزرق\n🔴 فاز (Phase) --> أحمر/أسود\n🟡🟢 أرضي (Terre) --> أصفر/أخضر")
+        st.info(T["note"])
