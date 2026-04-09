@@ -1,11 +1,11 @@
 import streamlit as st
-import requests
+import pandas as pd
 from datetime import datetime
 
-# 1. إعدادات الصفحة والألوان
+# 1. إعدادات الصفحة
 st.set_page_config(page_title="Tunisia Electric Pro", page_icon="⚡", layout="wide")
 
-# 2. قاعدة بيانات الأسعار التونسية
+# 2. قاعدة البيانات (محدثة)
 TUNISIA_PRICES = {
     "سلك 1.5 مم² (100م)": 95.000,
     "سلك 2.5 مم² (100م)": 145.000,
@@ -18,89 +18,78 @@ TUNISIA_PRICES = {
     "يد عاملة (يومية)": 90.000
 }
 
-# 3. قاموس اللغات (تم حذف الفصحى وبقاء 3 لغات فقط)
-texts = {
-    "تونس": {
-        "title": "⚡ منصة الكهربائي المحترف",
-        "menu": ["🤖 استشارة الخبير (AI)", "🧮 حاسبة القياسات", "💰 الفواتير والأسعار"],
-        "prompt": "أنت خبير كهرباء تونسي محترف، أجب بالدارجة التونسية التقنية الواضحة وبشكل نقاط.",
-        "calc_res": "النتيجة: كابل {wire} وقاطع {res}",
-        "ai_label": "اشرح المشكلة التقنية هنا:"
-    },
-    "Français": {
-        "title": "⚡ Tunisia Electric Pro",
-        "menu": ["🤖 Consultation AI", "🧮 Calculateur", "💰 Facturation & Prix"],
-        "prompt": "Tu es un expert électricien tunisien. Réponds en français technique.",
-        "calc_res": "Résultat: Câble {wire} et Disjoncteur {res}",
-        "ai_label": "Décrivez le problème ici :"
-    },
-    "English": {
-        "title": "⚡ Electric Master Pro",
-        "menu": ["🤖 AI Expert", "🧮 Calculator", "💰 Invoicing & Prices"],
-        "prompt": "You are a professional electrical expert. Provide advice in English.",
-        "calc_res": "Result: {wire} wire and {res} breaker",
-        "ai_label": "Describe the fault here:"
-    }
-}
-
-# 4. إعدادات اللغة في الجانب (3 خيارات فقط)
-st.sidebar.subheader("⚙️ Settings / الإعدادات")
-lang_map = {
-    "🇹🇳 تونسية": "تونس", 
-    "🇫🇷 Français": "Français", 
-    "🇺🇸 English": "English"
-}
-L_key = st.sidebar.selectbox("🌐 اختر اللغة / Langue", list(lang_map.keys()))
+# 3. اختيار اللغة
+lang_map = {"🇹🇳 تونسية": "تونس", "🇫🇷 Français": "Français", "🇺🇸 English": "English"}
+L_key = st.sidebar.selectbox("🌐 اللغة", list(lang_map.keys()))
 L = lang_map[L_key]
 
-# 5. عرض الواجهة
-current_text = texts[L]
-st.markdown(f"### {current_text['title']}")
+# 4. واجهة الفواتير المميزة
+st.markdown(f"### 💰 نظام الفواتير والتقديرات الاحترافي")
+st.write("---")
 
-API_KEY = st.secrets.get("GOOGLE_API_KEY")
-choice = st.sidebar.radio("🛠️ الأدوات", current_text["menu"])
+# تهيئة سلة المشتريات
+if 'cart' not in st.session_state:
+    st.session_state.cart = []
 
-# --- 1. استشارة الذكاء الاصطناعي ---
-if choice == current_text["menu"][0]:
-    st.subheader(current_text["menu"][0])
-    query = st.text_area(current_text["ai_label"], height=100)
-    if st.button("تحليل / Analyze"):
-        if query and API_KEY:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
-            payload = {"contents": [{"parts": [{"text": f"{current_text['prompt']} : {query}"}]}]}
-            try:
-                res = requests.post(url, json=payload)
-                st.info(res.json()['candidates'][0]['content']['parts'][0]['text'])
-            except: st.error("Error/خطأ")
+# إدخال بيانات الفني والزبون
+col_info1, col_info2 = st.columns(2)
+with col_info1:
+    tech_name = st.text_input("اسم الفني (أنت):", value="المعلم للكهرباء")
+    tech_phone = st.text_input("رقم الهاتف:")
+with col_info2:
+    client_name = st.text_input("اسم الزبون:")
+    date_now = datetime.now().strftime('%d/%m/%Y')
 
-# --- 2. حاسبة القياسات ---
-elif choice == current_text["menu"][1]:
-    st.subheader(current_text["menu"][1])
-    watt = st.number_input("Watt:", value=2000)
-    amp = watt / 220
-    if amp <= 11: res, wire = "10A", "1.5mm²"
-    elif amp <= 17: res, wire = "16A", "2.5mm²"
-    else: res, wire = "25A+", "4mm²+"
-    st.success(current_text["calc_res"].format(wire=wire, res=res))
+st.write("---")
 
-# --- 3. الفواتير والأسعار ---
-elif choice == current_text["menu"][2]:
-    st.subheader(current_text["menu"][2])
-    if 'cart' not in st.session_state: st.session_state.cart = []
+# إضافة المواد
+col_add1, col_add2, col_add3 = st.columns([2, 1, 1])
+with col_add1:
+    selected_product = st.selectbox("اختر المادة من المخزن:", list(TUNISIA_PRICES.keys()))
+with col_add2:
+    quantity = st.number_input("الكمية:", min_value=1, value=1)
+with col_add3:
+    st.write("##")
+    if st.button("➕ إضافة للفاتورة"):
+        price_unit = TUNISIA_PRICES[selected_product]
+        st.session_state.cart.append({
+            "المادة": selected_product,
+            "الكمية": quantity,
+            "سعر الوحدة": f"{price_unit:.3f} DT",
+            "المجموع": price_unit * quantity
+        })
+
+# عرض الفاتورة بشكل مميز (جدول)
+if st.session_state.cart:
+    st.markdown("#### 📄 معاينة الفاتورة")
+    df = pd.DataFrame(st.session_state.cart)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        item = st.selectbox("المنتج / Product:", list(TUNISIA_PRICES.keys()))
-        qty = st.number_input("الكمية / Qty:", min_value=1, value=1)
-        if st.button("إضافة / Add"):
-            st.session_state.cart.append({"item": item, "qty": qty, "total": TUNISIA_PRICES[item]*qty})
-            st.rerun()
-    with col2:
-        grand_total = 0
-        for e in st.session_state.cart:
-            st.write(f"- {e['qty']}x {e['item']} = {e['total']:.3f} DT")
-            grand_total += e['total']
-        st.warning(f"Total: {grand_total:.3f} DT")
-        if st.button("مسح / Clear"): 
+    # تنسيق الجدول ليظهر بشكل احترافي
+    st.table(df)
+    
+    grand_total = sum(item['المجموع'] for item in st.session_state.cart)
+    
+    # خلية المجموع النهائي
+    st.markdown(f"""
+    <div style="background-color:#f1c40f; padding:20px; border-radius:10px; text-align:center;">
+        <h2 style="color:black; margin:0;">المبلغ الإجمالي: {grand_total:.3f} DT</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # أزرار التحكم
+    col_ctrl1, col_ctrl2 = st.columns(2)
+    with col_ctrl1:
+        if st.button("🗑️ مسح الفاتورة"):
             st.session_state.cart = []
             st.rerun()
+    with col_ctrl2:
+        # توليد النص النهائي للنسخ أو الطباعة
+        invoice_header = f"⚡ {tech_name}\n📞 الهاتف: {tech_phone}\n📅 التاريخ: {date_now}\n👤 الزبون: {client_name}\n"
+        invoice_body = "\n".join([f"- {i['المادة']} (x{i['الكمية']}): {i['المجموع']:.3f} DT" for i in st.session_state.cart])
+        full_invoice = f"{invoice_header}\n{'-'*30}\n{invoice_body}\n{'-'*30}\nالإجمالي: {grand_total:.3f} DT"
+        
+        st.download_button("📩 تحميل الفاتورة للزبون", full_invoice, file_name=f"Facture_{client_name}.txt")
+
+else:
+    st.info("قم بإضافة المواد لإنشاء فاتورة جديدة.")
+    
