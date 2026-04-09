@@ -3,11 +3,11 @@ import pandas as pd
 import requests
 from datetime import datetime
 
-# 1. الإعدادات الأساسية
+# 1. الإعدادات الأساسية (النسخة 30 المستقرة)
 st.set_page_config(page_title="منصة الكهربائي المحترف v30", page_icon="⚡", layout="wide")
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-# 2. الكاتالوج الشامل (بدون تغيير)
+# 2. الكاتالوج الشامل
 CATALOGUE = {
     "🛠️ التأسيس (Gaines & Boites)": {
         "Foureau Orange 11mm (50m)": 28.500, "Foureau Orange 13mm (50m)": 32.800,
@@ -34,7 +34,7 @@ CATALOGUE = {
     }
 }
 
-# 3. نظام اللغات (مختصر للأقسام الثلاثة فقط)
+# 3. نظام الترجمة
 translations = {
     "🇹🇳 العربية/تونسية": {
         "menu": ["🤖 استشارة الخبير", "🧮 حاسبة القياسات", "📄 قائمة المواد"],
@@ -54,14 +54,13 @@ if 'invoice' not in st.session_state: st.session_state['invoice'] = []
 
 choice = st.sidebar.radio("🛠️ الأدوات", T["menu"])
 
-# --- 1. الخبير (نسخة الاستقرار التام 1.5 Flash) ---
+# --- 1. الخبير (نسخة 1.5 Flash المستقرة) ---
 if choice == T["menu"][0]:
     st.header(T["menu"][0])
-    query = st.text_area("اسأل خبيرك:", placeholder="مثلاً: كيفاش نحسب حمولة طابلو 24 موديل؟")
+    query = st.text_area("اسأل خبيرك:", placeholder="مثلاً: كيفاش نوزع الأحمال على الطابلو؟")
     if st.button("إرسال 🚀"):
         if query and API_KEY:
-            with st.spinner("جاري الاتصال بالخبير..."):
-                # استبدال الموديل بـ 1.5 فلاش لضمان الاستقرار في تونس
+            with st.spinner("جاري الاتصال..."):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
                 try:
                     res = requests.post(url, json={"contents": [{"parts": [{"text": f"{T['prompt']} : {query}"}]}]}, timeout=15)
@@ -81,7 +80,7 @@ elif choice == T["menu"][1]:
     wire = "1.5mm²" if amp <= 11 else "2.5mm²" if amp <= 17 else "4mm² أو أكثر"
     st.info(f"النتيجة المقترحة للسلك: {wire}")
 
-# --- 3. الفاتورة المطورة (بدون تغييرات معقدة) ---
+# --- 3. الفاتورة ---
 elif choice == T["menu"][2]:
     st.header(T["menu"][2])
     col1, col2 = st.columns(2)
@@ -102,7 +101,6 @@ elif choice == T["menu"][2]:
         total_val = df["المجموع"].sum()
         st.success(f"{T['total']}: {total_val:.3f} DT")
         
-        # تحميل CSV (متوافق مع النسخة 29)
         csv = df.to_csv(index=False).encode('utf-8-sig')
         st.download_button(label=T["download_btn"], data=csv, file_name=f"Devis_{datetime.now().strftime('%d_%m')}.csv", mime='text/csv')
         
