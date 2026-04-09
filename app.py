@@ -4,88 +4,92 @@ from PIL import Image
 import io
 
 # 1. إعدادات الصفحة
-st.set_page_config(page_title="Tunisia Electric Master", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Pro Electric Master", page_icon="⚡", layout="wide")
 
-# 2. نظام إدارة اللغات (AR, FR, EN)
+# 2. نظام إدارة اللغات المتطور
 if 'lang' not in st.session_state:
-    st.session_state.lang = "العربية"
+    st.session_state.lang = "تونس" # اللغة الافتراضية
 
-def set_lang(lang_name):
-    st.session_state.lang = lang_name
+def set_lang(lang_code):
+    st.session_state.lang = lang_code
 
-# أزرار اختيار اللغة في أعلى الصفحة
-col_l1, col_l2, col_l3 = st.columns([0.8, 0.1, 0.1])
-with col_l2:
-    if st.button("🌐 FR/EN"):
-        set_lang("Français" if st.session_state.lang != "Français" else "English")
-with col_l3:
-    if st.button("🇹🇳 AR"):
-        set_lang("العربية")
+# أزرار اختيار اللغة في شريط جانبي أنيق
+st.sidebar.markdown("### 🌐 اختر اللغة / Langue / Language")
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    if st.sidebar.button("🇹🇳 تونس"): set_lang("تونس")
+    if st.sidebar.button("🇸🇦 الفصحى"): set_lang("الفصحى")
+with col2:
+    if st.sidebar.button("🇫🇷 Français"): set_lang("Français")
+    if st.sidebar.button("🇺🇸 English"): set_lang("English")
 
 L = st.session_state.lang
 
-# 3. قاموس اللغات
+# 3. قاموس اللغات الشامل
 texts = {
-    "العربية": {
+    "تونس": {
         "title": "⚡ منصة الكهربائي المحترف",
-        "sidebar": "🛠️ حقيبة الفني",
         "menu": ["🤖 خبير الأعطال", "📸 مصور الأعطال", "🧮 حاسبة الكابلات"],
-        "query_label": "اشرح العطل التقني:",
-        "analyze_btn": "تحليل",
-        "watt_label": "القوة (Watt):",
-        "result_label": "✅ النتيجة:",
-        "ai_prompt": "أنت خبير كهرباء تونسي، أجب باللهجة التونسية والفرنسية والإنجليزية التقنية حسب الحاجة."
+        "query": "اشرح العطل التقني (بالدارجة):",
+        "btn": "تحليل",
+        "ai_prompt": "أنت خبير كهرباء تونسي، أجب باللهجة التونسية التقنية."
+    },
+    "الفصحى": {
+        "title": "⚡ منصة خبير الكهرباء المحترف",
+        "menu": ["🤖 خبير الأعطال", "📸 الفحص بالصور", "🧮 حاسبة الكابلات"],
+        "query": "يرجى شرح العطل الفني بالتفصيل:",
+        "btn": "بدء التحليل",
+        "ai_prompt": "أنت مستشار هندسة كهربائية خبير، أجب باللغة العربية الفصحى وبصياغة فنية دقيقة."
     },
     "Français": {
         "title": "⚡ Tunisia Electric Pro",
-        "sidebar": "🛠️ Boîte à outils",
         "menu": ["🤖 Expert AI", "📸 Diagnostic Vision", "🧮 Calcul de Câbles"],
-        "query_label": "Décrivez la panne :",
-        "analyze_btn": "Analyser",
-        "watt_label": "Puissance (Watt) :",
-        "result_label": "✅ Résultat :",
-        "ai_prompt": "Tu es un expert électricien. Réponds en français technique."
+        "query": "Décrivez la panne technique :",
+        "btn": "Analyser",
+        "ai_prompt": "Tu es un ingénieur électricien expert. Réponds en français technique."
     },
     "English": {
         "title": "⚡ Electric Master Pro",
-        "sidebar": "🛠️ Technician Toolbox",
         "menu": ["🤖 AI Expert", "📸 Vision Diagnosis", "🧮 Cable Calculator"],
-        "query_label": "Describe the fault:",
-        "analyze_btn": "Analyze",
-        "watt_label": "Power (Watt):",
-        "result_label": "✅ Result:",
-        "ai_prompt": "You are a professional electrical expert. Provide technical advice in English."
+        "query": "Describe the technical fault:",
+        "btn": "Analyze",
+        "ai_prompt": "You are a professional electrical engineer. Provide expert advice in English."
     }
 }
 
 # 4. واجهة التطبيق
 st.title(texts[L]["title"])
-st.write(f"**Language:** {L}")
+st.caption(f"Language Mode: {L}")
 
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
-choice = st.sidebar.radio(texts[L]["sidebar"], texts[L]["menu"])
+choice = st.sidebar.radio("القائمة" if L in ["تونس", "الفصحى"] else "Menu", texts[L]["menu"])
 
-# --- القسم الأول: خبير الأعطال ---
-if choice in [texts[lang]["menu"][0] for lang in texts]:
+# --- القسم الأول: خبير الأعطال (الذكاء الاصطناعي) ---
+if choice == texts[L]["menu"][0]:
     st.header(texts[L]["menu"][0])
-    query = st.text_area(texts[L]["query_label"], height=100)
+    query = st.text_area(texts[L]["query"], height=150)
     
-    if st.button(texts[L]["analyze_btn"]):
+    if st.button(texts[L]["btn"]):
         if query and API_KEY:
-            with st.spinner("Processing..."):
+            with st.spinner("جاري المعالجة..." if L != "English" else "Processing..."):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
                 payload = {"contents": [{"parts": [{"text": f"{texts[L]['ai_prompt']} : {query}"}]}]}
                 try:
                     response = requests.post(url, json=payload)
                     answer = response.json()['candidates'][0]['content']['parts'][0]['text']
-                    st.text_area("Response:", value=answer, height=300)
+                    st.success("✅ النتيجة / Result:")
+                    st.text_area("", value=answer, height=350)
                 except:
-                    st.error("Connection Error!")
+                    st.error("خطأ في الاتصال بالسيرفر!")
 
-# --- القسم الثاني: حاسبة الكابلات (مثال) ---
-elif choice in [texts[lang]["menu"][2] for lang in texts]:
+# --- القسم الثاني: حاسبة الكابلات ---
+elif choice == texts[L]["menu"][2]:
     st.header(texts[L]["menu"][2])
-    watt = st.number_input(texts[L]["watt_label"], value=2000)
-    if st.button(texts[L]["analyze_btn"]):
+    watt = st.number_input("القدرة بالواط / Power (W):", value=2000, step=100)
+    if st.button(texts[L]["btn"]):
         amp = watt / 220
-        st.success(f"{texts[L]['result_label']} {amp:.2f} A")
+        st.metric("Current (A)", f"{amp:.2f} A")
+        if amp <= 11: wire = "1.5 mm²"
+        elif amp <= 17: wire = "2.5 mm²"
+        else: wire = "4 mm² +"
+        st.success(f"Recommended Wire: {wire}")
