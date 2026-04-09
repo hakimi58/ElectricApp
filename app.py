@@ -1,15 +1,13 @@
 import streamlit as st
 import pandas as pd
 import requests
-import json
+from datetime import datetime
 
-# 1. الإعدادات الأساسية (النسخة المستقرة v28)
-st.set_page_config(page_title="Pro Electric Platform", page_icon="⚡", layout="wide")
-
-# جلب المفتاح السري
+# 1. الإعدادات الأساسية
+st.set_page_config(page_title="منصة الكهربائي المحترف v29", page_icon="⚡", layout="wide")
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-# 2. الكاتالوج الشامل (الكهرباء فقط)
+# 2. الكاتالوج الشامل
 CATALOGUE = {
     "🛠️ التأسيس (Gaines & Boites)": {
         "Foureau Orange 11mm (50m)": 28.500, "Foureau Orange 13mm (50m)": 32.800,
@@ -36,69 +34,48 @@ CATALOGUE = {
     }
 }
 
-# 3. نظام الترجمة الاحترافي
+# 3. نظام الترجمة (تم حذف الخراطيم من القائمة)
 translations = {
     "🇹🇳 العربية/تونسية": {
-        "menu": ["🤖 استشارة الخبير", "🧮 حاسبة القياسات", "📄 قائمة المواد", "📏 دليل الخراطيم والألوان"],
-        "ai_header": "🤖 خبير الكهرباء الذكي", "ai_placeholder": "اسأل بالدارجة التقنية...",
-        "calc_header": "🧮 حاسبة مقاطع الأسلاك", "inv_header": "📄 تحرير فاتورة شاملة",
-        "f_label": "قطر الفورو (مم):", "w_label": "نوع السلك:", "wires": "أسلاك",
-        "res_label": "⚠️ السعة القصوى لسحب سهل:", "color_title": "🎨 دليل ألوان الأسلاك",
-        "prompt": "أنت خبير كهرباء تونسي محترف. أجب بالدارجة التونسية التقنية.",
-        "btn_send": "إرسال 🚀", "add_btn": "إضافة للفاتورة", "total": "المجموع الجملي"
+        "menu": ["🤖 استشارة الخبير", "🧮 حاسبة القياسات", "📄 قائمة المواد"],
+        "total": "المجموع الجملي", "add_btn": "إضافة للفاتورة", "download_btn": "📥 تحميل الفاتورة (Excel/CSV)"
     },
     "🇫🇷 Français": {
-        "menu": ["🤖 Consultation AI", "🧮 Calculateur", "📄 Catalogue", "📏 Guide Gaines & Couleurs"],
-        "ai_header": "🤖 Expert AI", "ai_placeholder": "Posez votre question...",
-        "calc_header": "🧮 Calculateur de Section", "inv_header": "📄 Devis Complet",
-        "f_label": "Diamètre de gaine (mm):", "w_label": "Type de fil:", "wires": "fils",
-        "res_label": "⚠️ Capacité max suggérée:", "color_title": "🎨 Code Couleurs",
-        "prompt": "Tu es un expert électricien. Réponds en français technique.",
-        "btn_send": "Analyser 🚀", "add_btn": "Ajouter au devis", "total": "Total Général"
-    },
-    "🇺🇸 English": {
-        "menu": ["🤖 AI Consultation", "🧮 Calculator", "📄 Catalogue", "📏 Guide"],
-        "ai_header": "🤖 AI Electrical Expert", "ai_placeholder": "Ask your question...",
-        "calc_header": "🧮 Cable Size Calculator", "inv_header": "📄 Material Quote",
-        "f_label": "Conduit Diameter (mm):", "w_label": "Wire Type:", "wires": "wires",
-        "res_label": "⚠️ Max capacity:", "color_title": "🎨 Color Codes",
-        "prompt": "You are an electrical engineer. Answer in English.",
-        "btn_send": "Ask Expert 🚀", "add_btn": "Add to Quote", "total": "Grand Total"
+        "menu": ["🤖 Consultation AI", "🧮 Calculateur", "📄 Facture"],
+        "total": "Total Général", "add_btn": "Ajouter au devis", "download_btn": "📥 Télécharger (Excel/CSV)"
     }
 }
 
-# 4. واجهة التطبيق
-selected_lang = st.sidebar.selectbox("🌐 Choose Language", list(translations.keys()))
+selected_lang = st.sidebar.selectbox("🌐 اللغة", list(translations.keys()))
 T = translations[selected_lang]
 if 'invoice' not in st.session_state: st.session_state['invoice'] = []
 
 choice = st.sidebar.radio("🛠️ الأدوات", T["menu"])
 
-# --- 1. الخبير ---
+# --- القسم 1: الخبير ---
 if choice == T["menu"][0]:
-    st.header(T["ai_header"])
-    query = st.text_area("", placeholder=T["ai_placeholder"], height=150)
-    if st.button(T["btn_send"]):
+    st.header(T["menu"][0])
+    query = st.text_area("اسأل خبيرك:", placeholder="اسأل بالدارجة التقنية...")
+    if st.button("إرسال 🚀"):
         if query and API_KEY:
             with st.spinner("..."):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
-                payload = {"contents": [{"parts": [{"text": f"{T['prompt']} : {query}"}]}]}
-                res = requests.post(url, json=payload)
+                res = requests.post(url, json={"contents": [{"parts": [{"text": f"أجب بالدارجة التونسية التقنية: {query}"}]}]})
                 if res.status_code == 200:
                     st.success(res.json()['candidates'][0]['content']['parts'][0]['text'])
 
-# --- 2. الحاسبة ---
+# --- القسم 2: الحاسبة ---
 elif choice == T["menu"][1]:
-    st.header(T["calc_header"])
-    watt = st.number_input("Watt:", min_value=0, value=2000)
+    st.header(T["menu"][1])
+    watt = st.number_input("القدرة (Watt):", min_value=0, value=2000)
     amp = watt / 220
-    st.metric("Ampère", f"{amp:.2f} A")
-    wire = "1.5mm²" if amp <= 11 else "2.5mm²" if amp <= 17 else "4mm²+"
-    st.info(f"النتيجة: {wire}")
+    st.metric("التيار (Ampère)", f"{amp:.2f} A")
+    wire = "1.5mm²" if amp <= 11 else "2.5mm²" if amp <= 17 else "4mm² أو أكثر"
+    st.info(f"النتيجة المقترحة: {wire}")
 
-# --- 3. الفاتورة ---
+# --- القسم 3: الفاتورة ---
 elif choice == T["menu"][2]:
-    st.header(T["inv_header"])
+    st.header(T["menu"][2])
     col1, col2 = st.columns(2)
     with col1:
         cat = st.selectbox("الفئة", list(CATALOGUE.keys()))
@@ -106,21 +83,18 @@ elif choice == T["menu"][2]:
     with col2:
         qte = st.number_input("الكمية", min_value=1, value=1)
         if st.button(T["add_btn"]):
-            price = CATALOGUE[cat][item]
-            st.session_state['invoice'].append({"المادة": item, "الكمية": qte, "المجموع": qte * price})
+            st.session_state['invoice'].append({
+                "المادة": item, "الكمية": qte, "الثمن": CATALOGUE[cat][item], "المجموع": qte * CATALOGUE[cat][item]
+            })
             st.rerun()
+            
     if st.session_state['invoice']:
-        st.table(pd.DataFrame(st.session_state['invoice']))
-        st.success(f"{T['total']}: {sum(i['المجموع'] for i in st.session_state['invoice']):.3f} DT")
-
-# --- 4. دليل الخراطيم والألوان ---
-elif choice == T["menu"][3]:
-    st.header(T["menu"][3])
-    c1, c2 = st.columns(2)
-    with c1:
-        g_size = st.selectbox(T["f_label"], [11, 13, 16, 20, 25])
-        w_type = st.selectbox(T["w_label"], ["1.5 mm²", "2.5 mm²", "4 mm²", "6 mm²"])
-        st.warning(f"{T['res_label']} 3-5 {T['wires']}")
-    with c2:
-        st.subheader(T["color_title"])
-        st.code("🔵 Neutre\n🔴 Phase\n🟡🟢 Terre")
+        df = pd.DataFrame(st.session_state['invoice'])
+        st.table(df)
+        total_val = df["المجموع"].sum()
+        st.success(f"{T['total']}: {total_val:.3f} DT")
+        
+        csv = df.to_csv(index=False).encode('utf-8-sig')
+        st.download_button(label=T["download_btn"], data=csv, file_name=f"Devis_{datetime.now().strftime('%d_%m')}.csv", mime='text/csv')
+        
+        if st.button("🗑️ Reset"): st.session_state['invoice'] = []; st.rerun()
