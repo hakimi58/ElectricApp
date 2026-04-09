@@ -6,8 +6,7 @@ import requests
 # 1. إعدادات الصفحة
 st.set_page_config(page_title="منصة الكهربائي المحترف", page_icon="⚡", layout="wide")
 
-# 2. قاعدة بيانات المواد مع الأسعار التقريبية (بالدينار التونسي)
-# ملاحظة: هذه أسعار تقريبية للسوق التونسية حالياً
+# 2. قاعدة بيانات المواد والأسعار (تلقائية وقابلة للتعديل)
 HAKIM_PRICES = {
     "Boite encastré 3 M": 0.850,
     "Boite encastré 4 M": 1.200,
@@ -33,25 +32,30 @@ HAKIM_PRICES = {
 
 # 3. اختيار اللغة
 lang_options = {"🇹🇳 تونسية": "تونس", "🇫🇷 Français": "Français", "🇺🇸 English": "English"}
-L_key = st.sidebar.selectbox("🌐 اللغة", list(lang_options.keys()))
+L_key = st.sidebar.selectbox("🌐 اللغة / Langue", list(lang_options.keys()))
 L = lang_options[L_key]
 
+# 4. نصوص الواجهة
 texts = {
     "تونس": {
-        "menu": ["استشارة الخبير (AI)", "حاسبة القياسات", "نظام الفواتير والأسعار"],
-        "add": "إضافة للفاتورة", "total": "المجموع الجملي"
+        "menu": ["استشارة الخبير (AI)", "حاسبة القياسات", "إنشاء فاتورة (Devis)"],
+        "inv_title": "فاتورة تقديرية / DEVIS",
+        "add": "إضافة المادة",
+        "total_label": "المجموع الجملي الصافي (TTC):"
     },
     "Français": {
-        "menu": ["Consultation AI", "Calculateur", "Facturation & Prix"],
-        "add": "Ajouter", "total": "Total Global"
+        "menu": ["Consultation AI", "Calculateur", "Créer Devis"],
+        "inv_title": "DEVIS ESTIMATIF",
+        "add": "Ajouter l'article",
+        "total_label": "TOTAL GÉNÉRAL (TTC):"
     }
 }
 curr = texts.get(L, texts["تونس"])
 
-# 4. القائمة الجانبية
+# 5. القائمة الجانبية
 choice = st.sidebar.radio("🛠️ الأدوات", curr["menu"])
 
-# الأقسام 1 و 2 تظل كما هي في النسخة 8
+# القسم 1 و 2 (بدون تغيير)
 if choice == curr["menu"][0]:
     st.subheader(curr["menu"][0])
     st.write("قسم الذكاء الاصطناعي")
@@ -59,44 +63,69 @@ elif choice == curr["menu"][1]:
     st.subheader(curr["menu"][1])
     st.write("قسم الحاسبة")
 
-# --- القسم 3: نظام الفواتير بالأسعار التلقائية ---
+# --- القسم 3: نموذج فاتورة المحلات التونسية (التعديل المطلوب) ---
 elif choice == curr["menu"][2]:
-    st.subheader("📋 نظام الفواتير والأسعار التونسية")
+    st.markdown(f"### 📋 {curr['inv_title']}")
     
     if 'cart' not in st.session_state:
         st.session_state.cart = []
 
-    # واجهة الإدخال
+    # إطار إدخال البيانات (مثل الكاسة)
     with st.container():
-        col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
-            prod = st.selectbox("اختر المادة:", list(HAKIM_PRICES.keys()))
-        with col2:
+        c1, c2, c3 = st.columns([2, 1, 1])
+        with c1:
+            prod = st.selectbox("Désignation (المادة):", list(HAKIM_PRICES.keys()))
+        with c2:
             qte = st.number_input("الكمية:", min_value=1, value=1)
-        with col3:
-            # السعر يظهر تلقائياً من القاعدة ولكن يمكن تعديله
-            default_price = HAKIM_PRICES[prod]
-            price = st.number_input("السعر (DT):", min_value=0.0, value=default_price, format="%.3f")
+        with c3:
+            price = st.number_input("الثمن (DT):", min_value=0.0, value=HAKIM_PRICES[prod], format="%.3f")
         
         if st.button(curr["add"], use_container_width=True):
-            st.session_state.cart.append({"Désignation": prod, "Qty": qte, "Price": price, "Total": qte*price})
+            st.session_state.cart.append({
+                "Désignation": prod,
+                "Qté": qte,
+                "Prix Unitaire": price,
+                "Total": qte * price
+            })
             st.rerun()
 
-    # عرض الفاتورة والمسح السريع
+    # شكل الفاتورة النهائي (كما في المحلات)
     if st.session_state.cart:
-        st.write("---")
-        h1, h2, h3, h4, h5 = st.columns([3, 1, 1, 1, 0.5])
-        h1.write("**Désignation**"); h2.write("**Qty**"); h3.write("**P.U**"); h4.write("**Total**"); h5.write("🗑️")
+        st.markdown("""---""")
+        # رأس الفاتورة
+        col_header1, col_header2 = st.columns(2)
+        with col_header1:
+            st.write(f"**التاريخ:** {datetime.now().strftime('%d/%m/%Y')}")
+        with col_header2:
+            client = st.text_input("اسم الزبون:", "السيد ....................")
 
-        for i, item in enumerate(st.session_state.cart):
-            r1, r2, r3, r4, r5 = st.columns([3, 1, 1, 1, 0.5])
-            r1.write(item["Désignation"])
-            r2.write(str(item["Qty"]))
-            r3.write(f"{item['Price']:.3f}")
-            r4.write(f"**{item['Total']:.3f}**")
-            if r5.button("❌", key=f"del_{i}"):
-                st.session_state.cart.pop(i)
+        # جدول المواد (Tableau)
+        st.markdown("#### قائمة المواد:")
+        
+        # إنشاء جدول حقيقي باستخدام Dataframe لتسهيل العرض
+        df = pd.DataFrame(st.session_state.cart)
+        df.index += 1  # ليبدأ الترقيم من 1
+        
+        # عرض الجدول بشكل احترافي
+        st.table(df)
+
+        # خلاصة الفاتورة في الأسفل
+        total_sum = sum(it["Total"] for it in st.session_state.cart)
+        
+        st.markdown(f"""
+        <div style="background-color: #f8f9fa; padding: 20px; border: 2px solid #dee2e6; border-radius: 10px; text-align: center;">
+            <h2 style="margin: 0; color: #28a745;">{curr['total_label']} {total_sum:.3f} DT</h2>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # أزرار التحكم
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            if st.button("🗑️ مسح الفاتورة"):
+                st.session_state.cart = []
                 st.rerun()
-
-        grand_total = sum(it["Total"] for it in st.session_state.cart)
-        st.success(f"### {curr['total']}: {grand_total:.3f} DT")
+        with col_f2:
+             # زر تحميل بصيغة CSV أو نص (مؤقتاً)
+             st.download_button("📥 تحميل الفاتورة", df.to_csv(), file_name=f"Devis_{client}.csv")
+        with col_f3:
+            st.write("إمضاء الفني: ............ ")
