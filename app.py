@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 
 # 1. إعدادات الصفحة
 st.set_page_config(page_title="منصة الكهربائي المحترف", layout="wide")
 
-# 2. قاعدة البيانات والأسعار التلقائية
+# 2. الأسعار التلقائية
 HAKIM_PRICES = {
     "Boite encastré 3 M": 0.850, "Boite encastré 4 M": 1.200, "Boite encastré 6 M": 1.800,
     "Coffret 24 module Hager": 145.000, "Monture 3 modules sys43": 2.400, "Monture 4 modules sys43": 3.200,
@@ -16,66 +17,66 @@ HAKIM_PRICES = {
 if 'cart' not in st.session_state:
     st.session_state['cart'] = []
 
-# 4. القائمة الجانبية
-st.sidebar.title("🛠️ الأدوات")
-choice = st.sidebar.radio("اختر الوظيفة:", ["استشارة الخبير (AI)", "حاسبة القياسات", "نظام الفواتير"])
+# 4. اختيار الوظيفة
+choice = st.sidebar.radio("الأدوات:", ["نظام الفواتير", "استشارة الخبير", "الحاسبة"])
 
-# --- نظام الفواتير القابل للتعديل ---
 if choice == "نظام الفواتير":
-    st.header("📋 فاتورة قابلة للتعديل المباشر")
+    st.header("📋 تحرير فاتورة احترافية")
 
-    # واجهة إضافة المواد
+    # إضافة المواد
     with st.expander("➕ إضافة مادة جديدة", expanded=True):
-        col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
+        c1, c2, c3 = st.columns([2, 1, 1])
+        with c1:
             prod = st.selectbox("المادة:", list(HAKIM_PRICES.keys()))
-        with col2:
+        with c2:
             qte = st.number_input("الكمية:", min_value=1, value=1)
-        with col3:
+        with c3:
             price = st.number_input("الثمن (DT):", min_value=0.0, value=HAKIM_PRICES[prod], format="%.3f")
         
-        if st.button("إضافة السلعة ➕", use_container_width=True):
-            st.session_state['cart'].append({
-                "المادة": prod,
-                "الكمية": qte,
-                "الثمن الوحدوي": price,
-                "المجموع": qte * price
-            })
+        if st.button("إضافة ➕"):
+            st.session_state['cart'].append({"المادة": prod, "الكمية": qte, "الثمن": price, "المجموع": qte * price})
             st.rerun()
 
-    # عرض وتحرير الفاتورة
     if st.session_state['cart']:
-        st.write("---")
-        st.info("💡 يمكنك الضغط على أي خانة في الجدول (الكمية أو الثمن) لتغييرها مباشرة!")
-        
-        # تحويل السلة إلى DataFrame
         df = pd.DataFrame(st.session_state['cart'])
         
-        # استخدام data_editor للسماح بالتعديل اليدوي داخل الجدول
-        edited_df = st.data_editor(
-            df,
-            column_config={
-                "الكمية": st.column_config.NumberColumn(min_value=1),
-                "الثمن الوحدوي": st.column_config.NumberColumn(format="%.3f"),
-                "المجموع": st.column_config.NumberColumn(disabled=True, format="%.3f"), # المجموع يحسب آلياً
-            },
-            num_rows="dynamic", # يسمح لك بحذف أسطر بالضغط على زر Del في لوحة المفاتيح
-            use_container_width=True,
-            key="bill_editor"
-        )
-
-        # تحديث المجموع بعد التعديل (إعادة الحساب)
-        edited_df["المجموع"] = edited_df["الكمية"] * edited_df["الثمن الوحدوي"]
+        # جدول قابل للتعديل
+        edited_df = st.data_editor(df, use_container_width=True, key="main_editor")
         
-        # حفظ التعديلات في الذاكرة
-        if not edited_df.equals(df):
-            st.session_state['cart'] = edited_df.to_dict('records')
-            st.rerun()
-
-        # حساب المجموع النهائي
+        # إعادة حساب المجاميع بعد التعديل اليدوي
+        edited_df["المجموع"] = edited_df["الكمية"] * edited_df["الثمن"]
         total_final = edited_df["المجموع"].sum()
-        st.markdown(f"### المجموع الجملي الصافي: :green[{total_final:.3f} DT]")
+        
+        st.success(f"### المجموع الجملي: {total_final:.3f} DT")
 
-        if st.button("🗑️ مسح الفاتورة"):
-            st.session_state['cart'] = []
-            st.rerun()
+        # --- تحضير نص الفاتورة للوورد (Word Friendly) ---
+        client_name = st.text_input("اسم الزبون:", "حريف محترم")
+        
+        # تنسيق النص ليكون جميلاً عند فتحه في Word
+        out_txt = f"قائمة تقديرية للمواد الكهربائية (DEVIS)\n"
+        out_txt += f"التاريخ: {datetime.now().strftime('%d/%m/%Y')}\n"
+        out_txt += f"الزبون: {client_name}\n"
+        out_txt += "="*50 + "\n"
+        out_txt += f"{'المادة':<30} | {'الكمية':<5} | {'الثمن':<10} | {'المجموع':<10}\n"
+        out_txt += "-"*50 + "\n"
+        
+        for _, row in edited_df.iterrows():
+            out_txt += f"{row['المادة']:<30} | {row['الكمية']:<5} | {row['الثمن']:<10.3f} | {row['المجموع']:<10.3f}\n"
+        
+        out_txt += "="*50 + "\n"
+        out_txt += f"المجموع الجملي الصافي: {total_final:.3f} دينار تونسي\n"
+        out_txt += "="*50 + "\n\nإمضاء الفني:\n...................."
+
+        col_del, col_down = st.columns(2)
+        with col_del:
+            if st.button("🗑️ مسح الكل"):
+                st.session_state['cart'] = []
+                st.rerun()
+        with col_down:
+            # التحميل بصيغة .txt يضمن بقاء العربية سليمة
+            st.download_button(
+                label="📥 تحميل الفاتورة للوورد",
+                data=out_txt.encode('utf-8-sig'), # هذا التشفير يحل مشكلة الرموز الغريبة
+                file_name=f"Devis_{client_name}.txt",
+                mime="text/plain"
+            )
