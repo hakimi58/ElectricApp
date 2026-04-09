@@ -1,42 +1,87 @@
 import streamlit as st
+import pandas as pd
+from datetime import datetime
 import requests
 import json
 
-# 1. إعدادات بسيطة جداً
-st.set_page_config(page_title="تحديث الخبير")
+# 1. إعدادات الصفحة
+st.set_page_config(page_title="منصة الكهربائي المحترف", page_icon="⚡", layout="wide")
 
-# 2. محاولة جلب المفتاح
+# 2. جلب المفتاح من Secrets
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-st.title("🛠️ فحص نظام الخبير")
+# 3. قاعدة البيانات (الفورو والمواد التونسية)
+DB_MATERIELS = {
+    "Foureau Orange 11mm": 28.500,
+    "Foureau Orange 13mm": 32.800,
+    "Foureau Orange 16mm": 38.000,
+    "Foureau Orange 20mm": 48.500,
+    "Hager: Disjoncteur 16A": 9.800,
+    "Tunisie Câbles: 1.5mm": 65.000,
+    "Legrand Valena: Prise": 11.200
+}
 
-# 3. فحص المفتاح (هنا سنعرف المشكلة)
-if not API_KEY:
-    st.error("❌ المشكلة واضحة: تطبيق Streamlit لا يرى المفتاح في الـ Secrets!")
-    st.info("تأكد أنك كتبت في الإعدادات: GOOGLE_API_KEY وليس شيئاً آخر.")
-else:
-    st.success(f"✅ تم العثور على المفتاح (يبدأ بـ: {API_KEY[:4]}...)")
+# 4. ذاكرة الفاتورة
+if 'invoice' not in st.session_state:
+    st.session_state['invoice'] = []
 
-    # 4. تجربة اتصال مباشرة وبسيطة
-    query = st.text_input("اسأل أي سؤال للتجربة:")
-    if st.button("تشغيل الخبير"):
-        # رابط مباشر ومجرب 100%
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-        payload = {"contents": [{"parts": [{"text": f"أجب باختصار بالدارجة التونسية: {query}"}]}]}
-        
-        try:
-            res = requests.post(url, json=payload, timeout=10)
-            if res.status_code == 200:
-                st.balloons() # احتفال بالنجاح
-                st.success(res.json()['candidates'][0]['content']['parts'][0]['text'])
-            else:
-                st.error(f"⚠️ السيرفر رد بكود: {res.status_code}")
-                st.write("التفاصيل:", res.text) # سيطبع لنا السبب الحقيقي للـ 404
-        except Exception as e:
-            st.error(f"📡 مشكلة اتصال: {e}")
+# 5. اللغات
+lang = st.sidebar.selectbox("🌐 اللغة", ["🇹🇳 تونسية", "🇫🇷 Français"])
 
-# 5. قائمة الفاتورة (بسيطة لكي لا يثقل الكود)
-st.write("---")
-st.subheader("📦 قائمة المواد")
-items = ["Foureau 11", "Foureau 13", "Foureau 16", "Foureau 20", "Hager 16A"]
-st.selectbox("المواد المتاحة:", items)
+# 6. القائمة الجانبية
+choice = st.sidebar.radio("🛠️ الأدوات", ["استشارة الخبير (AI)", "حاسبة القياسات", "نظام الفواتير"])
+
+# --- القسم 1: استشارة الخبير (تم إصلاح الرابط والموديل) ---
+if choice == "استشارة الخبير (AI)":
+    st.subheader("🤖 خبير الكهرباء الذكي")
+    query = st.text_area("اسأل الخبير (بالدارجة):", placeholder="مثلاً: كيفاش نركب لوحة قواطع؟")
+    
+    if st.button("تحليل السؤال"):
+        if not API_KEY:
+            st.error("❌ المفتاح غير موجود في Secrets!")
+        elif query:
+            with st.spinner("جاري الاتصال بالخبير..."):
+                # هذا هو الرابط الذي سيحل مشكلة 404 نهائياً
+                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={API_KEY}"
+                headers = {'Content-Type': 'application/json'}
+                payload = {
+                    "contents": [{
+                        "parts": [{"text": f"أنت خبير كهرباء تونسي محترف، أجب بالدارجة التونسية التقنية: {query}"}]
+                    }]
+                }
+                
+                try:
+                    res = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+                    if res.status_code == 200:
+                        ans = res.json()['candidates'][0]['content']['parts'][0]['text']
+                        st.info(ans)
+                    else:
+                        st.error(f"خطأ {res.status_code}: السيرفر لا يستجيب. جرب مفتاحاً جديداً.")
+                except Exception as e:
+                    st.error(f"📡 مشكلة اتصال: {e}")
+
+# --- القسم 2: حاسبة القياسات ---
+elif choice == "حاسبة القياسات":
+    st.subheader("🧮 حاسبة مقاطع الأسلاك")
+    watt = st.number_input("قوة الجهاز (Watt):", value=2000)
+    amp = watt / 220
+    wire = "1.5 مم²" if amp <= 11 else "2.5 مم²" if amp <= 17 else "4 مم²+"
+    st.success(f"التيار المقدر: {amp:.2f} A | السلك المناسب: {wire}")
+
+# --- القسم 3: نظام الفواتير (الفورو) ---
+elif choice == "نظام الفواتير":
+    st.subheader("📄 إنشاء فاتورة")
+    prod = st.selectbox("اختر المادة:", list(DB_MATERIELS.keys()))
+    qte = st.number_input("الكمية:", min_value=1, value=1)
+    
+    if st.button("إضافة للفاتورة"):
+        st.session_state['invoice'].append({"المادة": prod, "الكمية": qte, "المجموع": qte * DB_MATERIELS[prod]})
+        st.rerun()
+
+    if st.session_state['invoice']:
+        df = pd.DataFrame(st.session_state['invoice'])
+        st.table(df)
+        st.markdown(f"### المجموع: {df['المجموع'].sum():.3f} DT")
+        if st.button("🗑️ مسح"):
+            st.session_state['invoice'] = []
+            st.rerun()
