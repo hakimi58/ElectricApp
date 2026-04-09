@@ -1,62 +1,87 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 import requests
 import json
 
 # 1. إعدادات الصفحة
-st.set_page_config(page_title="منصة الكهربائي المحترف", layout="wide")
+st.set_page_config(page_title="منصة الكهربائي المحترف 2026", page_icon="⚡", layout="wide")
 
-# 2. جلب المفتاح
+# 2. جلب المفتاح السري
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-# 3. قاعدة البيانات (الفورو والمواد)
-DB = {
-    "Foureau Orange 11mm": 28.500, "Foureau Orange 13mm": 32.800,
-    "Foureau Orange 16mm": 38.000, "Foureau Orange 20mm": 48.500,
-    "Hager 16A": 9.800, "Tunisie Câbles 1.5mm": 65.000
+# 3. قاعدة البيانات (الفورو والمواد التونسية)
+DB_MATERIELS = {
+    "Foureau Orange 11mm (Rouleau)": 28.500,
+    "Foureau Orange 13mm (Rouleau)": 32.800,
+    "Foureau Orange 16mm (Rouleau)": 38.000,
+    "Foureau Orange 20mm (Rouleau)": 48.500,
+    "Hager: Disjoncteur DPN 16A": 9.800,
+    "Tunisie Câbles: 1.5mm² (100m)": 65.000,
+    "Legrand Valena: Prise 2P+T": 11.200,
+    "Spot LED 7W Encastré": 6.800
 }
 
-# 4. الواجهة
-st.sidebar.title("الإعدادات")
-choice = st.sidebar.radio("الأدوات", ["استشارة الخبير (AI)", "الفاتورة"])
+if 'cart' not in st.session_state:
+    st.session_state['cart'] = []
 
+# 4. اللغات
+lang = st.sidebar.selectbox("🌐 اللغة", ["🇹🇳 تونسية", "🇫🇷 Français"])
+
+# 5. القائمة الجانبية
+choice = st.sidebar.radio("🛠️ الأدوات", ["استشارة الخبير (AI)", "حاسبة القياسات", "نظام الفواتير"])
+
+# --- القسم 1: استشارة الخبير (استخدام الموديل الجديد 2.5 Flash) ---
 if choice == "استشارة الخبير (AI)":
-    st.subheader("🤖 استشارة الخبير")
-    query = st.text_area("اسأل الخبير:")
+    st.subheader("🤖 خبير الكهرباء الذكي (Gemini 2.5)")
+    query = st.text_area("اسأل الخبير (بالدارجة التونسية):", placeholder="مثلاً: كيفاش نحمي الدار من السيرشارج؟")
     
-    if st.button("تحليل"):
+    if st.button("تحليل السؤال"):
         if not API_KEY:
-            st.error("المفتاح غير موجود في Secrets!")
-        else:
-            with st.spinner("جاري تجربة الاتصال..."):
-                # محاولة الاتصال بموديل gemini-1.5-flash برابط v1 (أحدث نسخة)
-                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-                
+            st.error("❌ المفتاح غير موجود في Secrets!")
+        elif query:
+            with st.spinner("جاري الاتصال بأحدث موديل 2.5..."):
+                # تم تحديث الرابط والموديل بناءً على تشخيصك
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
+                headers = {'Content-Type': 'application/json'}
                 payload = {
                     "contents": [{
-                        "parts": [{"text": f"أنت خبير كهرباء تونسي، أجب بالدارجة: {query}"}]
+                        "parts": [{"text": f"أنت خبير كهرباء تونسي محترف. أجب بالدارجة التونسية التقنية: {query}"}]
                     }]
                 }
                 
                 try:
-                    res = requests.post(url, json=payload, timeout=10)
+                    res = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
                     if res.status_code == 200:
-                        st.success(res.json()['candidates'][0]['content']['parts'][0]['text'])
+                        ans = res.json()['candidates'][0]['content']['parts'][0]['text']
+                        st.info(ans)
                     else:
-                        st.error(f"فشل الاتصال بكود {res.status_code}")
-                        # هنا السر: سنطلب من السيرفر إخبارنا ما هي الموديلات التي يقبلها مفتاحك
-                        st.warning("🧐 جاري فحص الموديلات المتاحة لمفتاحك...")
-                        diag_url = f"https://generativelanguage.googleapis.com/v1/models?key={API_KEY}"
-                        diag_res = requests.get(diag_url)
-                        if diag_res.status_code == 200:
-                            models = [m['name'] for m in diag_res.json().get('models', [])]
-                            st.write("الموديلات التي يدعمها مفتاحك حالياً هي:", models)
-                        else:
-                            st.write("السيرفر يرفض حتى قائمة الموديلات. هذا يعني أن المفتاح يحتاج تفعيل من Google AI Studio.")
+                        st.error(f"خطأ {res.status_code}: السيرفر لم يقبل الطلب. التفاصيل: {res.text}")
                 except Exception as e:
-                    st.error(f"خطأ: {e}")
+                    st.error(f"📡 مشكلة اتصال: {e}")
 
-elif choice == "الفاتورة":
-    st.subheader("📄 نظام الفواتير (الفورو)")
-    prod = st.selectbox("المادة:", list(DB.keys()))
-    st.write(f"الثمن التقديري: {DB[prod]:.3f} DT")
+# --- القسم 2: حاسبة القياسات ---
+elif choice == "حاسبة القياسات":
+    st.subheader("🧮 حاسبة مقاطع الأسلاك")
+    watt = st.number_input("قوة الجهاز (Watt):", value=2000)
+    amp = watt / 220
+    wire = "1.5 مم²" if amp <= 11 else "2.5 مم²" if amp <= 17 else "4 مم²+"
+    st.success(f"التيار: {amp:.2f} A | السلك: {wire}")
+
+# --- القسم 3: نظام الفواتير (الفورو) ---
+elif choice == "نظام الفواتير":
+    st.subheader("📄 إنشاء فاتورة")
+    prod = st.selectbox("اختر المادة:", list(DB_MATERIELS.keys()))
+    qte = st.number_input("الكمية:", min_value=1, value=1)
+    
+    if st.button("إضافة للفاتورة"):
+        st.session_state['cart'].append({"المادة": prod, "الكمية": qte, "المجموع": qte * DB_MATERIELS[prod]})
+        st.rerun()
+
+    if st.session_state['cart']:
+        df = pd.DataFrame(st.session_state['cart'])
+        st.table(df)
+        st.markdown(f"### المجموع الجملي: :green[{df['المجموع'].sum():.3f} DT]")
+        if st.button("🗑️ مسح"):
+            st.session_state['cart'] = []
+            st.rerun()
