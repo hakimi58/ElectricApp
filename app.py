@@ -1,123 +1,96 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import requests
 
-# 1. إعدادات الصفحة
-st.set_page_config(page_title="منصة الكهربائي المحترف", layout="wide")
+# 1. إعدادات الصفحة (النسخة 8 الأصلية)
+st.set_page_config(page_title="منصة الكهربائي المحترف", page_icon="⚡", layout="wide")
 
-# 2. قاعدة البيانات الشاملة للمواد الكهربائية في تونس
-# قمت بإضافة الأنواع والمصنعين (Marques) الأكثر تداولاً
-DATABASE_MATERIELS = {
-    # --- الحماية (Protection) ---
-    "Hager: Disjoncteur DPN 10A": 10.500,
-    "Hager: Disjoncteur DPN 16A": 9.800,
-    "Hager: Disjoncteur DPN 20A": 9.800,
-    "Hager: Disjoncteur DPN 25A": 11.200,
-    "Hager: Interrupteur Différentiel 40A 30mA": 95.000,
-    "Hager: Disjoncteur Différentiel 32A": 88.000,
-    
-    "Schneider: Disjoncteur DPN 16A": 11.500,
-    "Schneider: Disjoncteur DPN 20A": 11.500,
-    "Schneider: Interrupteur Différentiel 40A": 110.000,
-    
-    "Chint: Disjoncteur DPN 16A": 6.500,
-    "Chint: Disjoncteur DPN 20A": 6.500,
-    "Chint: Différentiel 40A": 55.000,
-    
-    "General: Disjoncteur DPN 16A": 7.800,
-    "General: Disjoncteur DPN 20A": 7.800,
+# 2. نظام اختيار اللغة (تونسية، فرنسية، إنجليزية فقط)
+lang_options = {"🇹🇳 تونسية": "تونس", "🇫🇷 Français": "Français", "🇺🇸 English": "English"}
+L_key = st.sidebar.selectbox("🌐 اللغة / Langue", list(lang_options.keys()))
+L = lang_options[L_key]
 
-    # --- القواطع والبرايز (Appareillage) ---
-    "Legrand (Valena): Interrupteur Simple": 8.500,
-    "Legrand (Valena): Va et Vient": 9.800,
-    "Legrand (Valena): Prise 2P+T": 10.500,
-    
-    "Générale (Système 45): Interrupteur Simple": 5.200,
-    "Générale (Système 45): Va et Vient": 6.800,
-    "Générale (Système 45): Prise 2P+T": 7.200,
-    "Générale (Système 43): Interrupteur Simple": 4.500,
-    
-    "Ingellec (Tiziano): Interrupteur Simple": 4.200,
-    "Ingellec (Tiziano): Prise 2P+T": 5.800,
+# 3. جلب المفتاح السري للذكاء الاصطناعي
+API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-    # --- الصناديق والعلب (Coffrets & Boites) ---
-    "Hager: Coffret 12 Modules (Encastré)": 45.000,
-    "Hager: Coffret 24 Modules (Encastré)": 145.000,
-    "Hager: Coffret 36 Modules (Encastré)": 195.000,
-    "Générale: Boite Encastrement 3M": 0.850,
-    "Générale: Boite Encastrement 4M": 1.250,
-    "Générale: Boite Encastrement 6M": 1.850,
-    "Boite Dérivation 100x100": 2.200,
-    "Boite Dérivation 150x150": 4.500,
-
-    # --- الأسلاك والقنوات (Câbles & Conduits) ---
-    "Câble (Tunisie Câbles): 1.5mm² (Rouge/Bleu) 100m": 65.000,
-    "Câble (Tunisie Câbles): 2.5mm² (Rouge/Bleu) 100m": 105.000,
-    "Câble (Tunisie Câbles): 4mm² 100m": 165.000,
-    "Câble (Tunisie Câbles): 6mm² 100m": 240.000,
-    "Câble TV (Teleco): Coaxial 100m": 85.000,
-    "Câble Réseau: Cat6 UTP (mètre)": 1.500,
-    "Tube Orange (ICTA) 16mm (Rouleau)": 35.000,
-    "Tube Orange (ICTA) 20mm (Rouleau)": 45.000,
-    "Tube Orange (ICTA) 25mm (Rouleau)": 58.000,
-
-    # --- الإضاءة (Eclairage) ---
-    "Spot LED 7W (Encastré)": 6.500,
-    "Hublot LED 18W (Etanche)": 18.500,
-    "Réglette LED 120cm": 15.000,
-    "Projecteur LED 50W": 45.000
+# 4. قاموس النصوص (النسخة 8 الأصلية بدون فصحى)
+texts = {
+    "تونس": {
+        "title": "⚡ منصة الكهربائي المحترف",
+        "menu": ["استشارة الخبير (AI)", "حاسبة القياسات", "تحرير فاتورة (Devis)"],
+        "ai_label": "اشرح المشكلة هنا:",
+        "calc_label": "قوة الجهاز (Watt):",
+        "invoice_header": "📄 إنشاء فاتورة تقديرية",
+        "prompt": "أنت خبير كهرباء تونسي، أجب بالدارجة التونسية التقنية."
+    },
+    "Français": {
+        "title": "⚡ Pro Electric Platform",
+        "menu": ["Consultation AI", "Calculateur", "Établir Facture"],
+        "ai_label": "Décrivez le problème :",
+        "calc_label": "Puissance (Watt) :",
+        "invoice_header": "📄 Créer un Devis",
+        "prompt": "Tu es un expert électricien. Réponds en français technique."
+    },
+    "English": {
+        "title": "⚡ Electric Master Pro",
+        "menu": ["AI Consultation", "Calculator", "Create Invoice"],
+        "ai_label": "Describe the fault:",
+        "calc_label": "Power (Watt):",
+        "invoice_header": "📄 Generate Invoice",
+        "prompt": "You are a professional electrical expert. Provide advice in English."
+    }
 }
 
-# 3. ذاكرة الجلسة
-if 'cart' not in st.session_state:
-    st.session_state['cart'] = []
+# 5. الواجهة الرئيسية
+st.markdown(f"### {texts[L]['title']}")
+st.write("---")
 
-# 4. واجهة التطبيق
-st.sidebar.title("🛠️ منصة الكهربائي")
-choice = st.sidebar.radio("الأدوات:", ["نظام الفواتير", "استشارة الخبير", "الحاسبة"])
+# 6. القائمة الجانبية
+choice = st.sidebar.radio("🛠️ الأدوات", texts[L]["menu"])
 
-if choice == "نظام الفواتير":
-    st.header("📋 تحرير فاتورة (جميع المواد والمصنعين)")
+# --- القسم الأول: استشارة الخبير (AI) ---
+if choice == texts[L]["menu"][0]:
+    st.subheader(texts[L]["menu"][0])
+    query = st.text_area(texts[L]["ai_label"], height=100)
+    if st.button("تحليل" if L == "تونس" else "Analyze"):
+        if query and API_KEY:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+            payload = {"contents": [{"parts": [{"text": f"{texts[L]['prompt']} : {query}"}]}]}
+            try:
+                res = requests.post(url, json=payload)
+                answer = res.json()['candidates'][0]['content']['parts'][0]['text']
+                st.info(answer)
+            except:
+                st.error("خطأ في الاتصال.")
 
-    # إدخال المواد
-    with st.expander("➕ إضافة مادة من قاعدة البيانات", expanded=True):
-        c1, c2, c3 = st.columns([2, 1, 1])
-        with c1:
-            # قائمة البحث والفلترة
-            search_query = st.text_input("ابحث عن مادة أو مصنع (مثال: Hager أو Prise):")
-            filtered_items = [k for k in DATABASE_MATERIELS.keys() if search_query.lower() in k.lower()]
-            prod = st.selectbox("اختر المادة:", filtered_items if filtered_items else list(DATABASE_MATERIELS.keys()))
-        with c2:
-            qte = st.number_input("الكمية:", min_value=1, value=1)
-        with c3:
-            price = st.number_input("الثمن (DT):", min_value=0.0, value=DATABASE_MATERIELS[prod], format="%.3f")
-        
-        if st.button("إضافة للفاتورة ➕", use_container_width=True):
-            st.session_state['cart'].append({"المادة": prod, "الكمية": qte, "الثمن": price, "المجموع": qte * price})
-            st.rerun()
+# --- القسم الثاني: حاسبة القياسات ---
+elif choice == texts[L]["menu"][1]:
+    st.subheader(texts[L]["menu"][1])
+    watt = st.number_input(texts[L]["calc_label"], value=2000)
+    if st.button("احسب" if L == "تونس" else "Calculate"):
+        amp = watt / 220
+        wire = "1.5 مم²" if amp <= 11 else "2.5 مم²" if amp <= 17 else "4 مم²+"
+        st.success(f"I = {amp:.2f} A | Cable: {wire}")
 
-    # عرض الفاتورة والتحرير
-    if st.session_state['cart']:
-        df = pd.DataFrame(st.session_state['cart'])
-        edited_df = st.data_editor(df, use_container_width=True, key="main_editor", num_rows="dynamic")
-        
-        # تحديث الحسابات
-        edited_df["المجموع"] = edited_df["الكمية"] * edited_df["الثمن"]
-        total_final = edited_df["المجموع"].sum()
-        
-        st.success(f"### المجموع الجملي الصافي: {total_final:.3f} DT")
-
-        # تجهيز النص للتحميل (Word)
-        client = st.text_input("اسم الزبون:", "السيد ....................")
-        report = f"DEVIS ESTIMATIF\nالزبون: {client}\nتاريخ: {datetime.now().strftime('%d/%m/%Y')}\n" + "="*50 + "\n"
-        for i, r in edited_df.iterrows():
-            report += f"{i+1}. {r['المادة']} | ك: {r['الكمية']} | س: {r['الثمن']:.3f} | ج: {r['المجموع']:.3f}\n"
-        report += "="*50 + f"\nالمجموع الجملي: {total_final:.3f} DT"
-
-        c_del, c_down = st.columns(2)
-        with c_del:
-            if st.button("🗑️ مسح الكل"):
-                st.session_state['cart'] = []
-                st.rerun()
-        with c_down:
-            st.download_button("📥 تحميل الفاتورة للوورد", report.encode('utf-8-sig'), file_name=f"Devis_{client}.txt")
+# --- القسم الثالث: تحرير الفواتير (النسخة 8 الأصلية) ---
+elif choice == texts[L]["menu"][2]:
+    st.subheader(texts[L]["invoice_header"])
+    c_name = st.text_input("اسم الزبون / Client Name:")
+    items = st.text_area("المواد والخدمات / Items & Services:")
+    price = st.number_input("المبلغ الإجمالي (DT):", min_value=0.0)
+    
+    if st.button("حفظ الفاتورة" if L == "تونس" else "Save Invoice"):
+        invoice_content = f"""
+        {texts[L]['title']}
+        التاريخ: {datetime.now().strftime('%d/%m/%Y')}
+        الزبون: {c_name}
+        ---------------------------
+        التفاصيل:
+        {items}
+        ---------------------------
+        المبلغ الإجمالي: {price:.3f} دينار تونسي
+        ---------------------------
+        """
+        st.code(invoice_content)
+        st.download_button("تحميل (.txt)", invoice_content, file_name=f"Devis_{c_name}.txt")
