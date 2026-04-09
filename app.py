@@ -2,28 +2,23 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import requests
+import json
 
 # 1. إعدادات الصفحة
 st.set_page_config(page_title="منصة الكهربائي المحترف", page_icon="⚡", layout="wide")
 
-# 2. جلب المفتاح من الـ Secrets
-# تأكد أن الاسم في الإعدادات هو GOOGLE_API_KEY
+# 2. جلب المفتاح من Secrets
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-# 3. قاعدة البيانات الشاملة
+# 3. قاعدة البيانات (المواد التونسية)
 DATABASE_PRO = {
-    "Foureau Orange 11mm (Rouleau)": 28.500, "Foureau Orange 13mm (Rouleau)": 32.800,
-    "Foureau Orange 16mm (Rouleau)": 38.000, "Foureau Orange 20mm (Rouleau)": 48.500,
-    "Foureau Noir (Béton) 16mm": 42.000, "Foureau Noir (Béton) 20mm": 52.000,
-    "Hager: Disjoncteur DPN 10A": 10.500, "Hager: Disjoncteur DPN 16A": 9.800,
-    "Hager: Disjoncteur DPN 20A": 9.800, "Hager: Différentiel 40A 30mA": 95.000,
-    "Hager: Coffret Encastré 24M": 145.000, "Legrand Valena: Prise 2P+T": 11.200,
-    "Tunisie Câbles: 1.5mm² (100m)": 65.000, "Tunisie Câbles: 2.5mm² (100m)": 105.000,
-    "Générale: Boite Encastrement 3M": 0.900, "Spot LED 7W Encastré": 6.800
+    "Foureau Orange 11mm": 28.500, "Foureau Orange 13mm": 32.800,
+    "Foureau Orange 16mm": 38.000, "Foureau Orange 20mm": 48.500,
+    "Hager: Disjoncteur 16A": 9.800, "Hager: Diff 40A": 95.000,
+    "Legrand Valena: Prise": 11.200, "Tunisie Câbles: 1.5mm": 65.000
 }
 
-if 'cart' not in st.session_state:
-    st.session_state['cart'] = []
+if 'cart' not in st.session_state: st.session_state['cart'] = []
 
 # 4. نظام اللغات
 lang_options = {"🇹🇳 تونسية": "تونس", "🇫🇷 Français": "Français"}
@@ -46,53 +41,56 @@ texts = {
 }
 curr = texts.get(L, texts["تونس"])
 
-# 5. الواجهة
+# 5. القائمة الجانبية
 choice = st.sidebar.radio("🛠️ الأدوات", curr["menu"])
 
-# --- القسم 1: استشارة الخبير (تصحيح خطأ 404) ---
+# --- القسم 1: استشارة الخبير (الربط المطور لتفادي 404) ---
 if choice == curr["menu"][0]:
     st.subheader("🤖 خبير الكهرباء الذكي")
     query = st.text_area(curr["ai_label"], placeholder="اكتب سؤالك هنا...")
     
-    if st.button("تحليل السؤال"):
+    if st.button("تحليل السؤال 🤖"):
         if not API_KEY:
-            st.error("❌ المفتاح غير موجود في Secrets.")
+            st.error("❌ المفتاح GOOGLE_API_KEY غير موجود في Secrets.")
         elif query:
-            with st.spinner("جاري الاتصال..."):
-                # تحديث الرابط لضمان عدم حدوث خطأ 404
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+            with st.spinner("جاري الاتصال بالسيرفر..."):
+                # الطريقة الجديدة للرابط لضمان العمل
+                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={API_KEY}"
                 headers = {'Content-Type': 'application/json'}
-                payload = {"contents": [{"parts": [{"text": f"{curr['prompt']} : {query}"}]}]}
+                data = {
+                    "contents": [{
+                        "parts": [{"text": f"{curr['prompt']} : {query}"}]
+                    }]
+                }
                 
                 try:
-                    res = requests.post(url, json=payload, headers=headers, timeout=15)
-                    if res.status_code == 200:
-                        st.info(res.json()['candidates'][0]['content']['parts'][0]['text'])
+                    # قمنا بتغيير الموديل إلى gemini-pro لضمان التوافق
+                    response = requests.post(url, headers=headers, data=json.dumps(data), timeout=15)
+                    
+                    if response.status_code == 200:
+                        res_json = response.json()
+                        answer = res_json['candidates'][0]['content']['parts'][0]['text']
+                        st.info(answer)
+                    elif response.status_code == 404:
+                        st.error("خطأ 404: السيرفر لم يجد هذا الرابط. جاري تجربة رابط بديل...")
+                        # محاولة ثانية برابط مختلف تلقائياً
+                        url_alt = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+                        res_alt = requests.post(url_alt, headers=headers, data=json.dumps(data), timeout=15)
+                        if res_alt.status_code == 200:
+                            st.info(res_alt.json()['candidates'][0]['content']['parts'][0]['text'])
+                        else:
+                            st.error(f"فشل الاتصال النهائي (كود: {res_alt.status_code}). تأكد من أن الـ API Key مفعل.")
                     else:
-                        st.error(f"فشل الاتصال. الكود: {res.status_code}. ثبت من إعدادات الـ API في جوجل.")
+                        st.error(f"فشل الاتصال. الكود: {response.status_code}")
                 except Exception as e:
                     st.error(f"خطأ غير متوقع: {str(e)}")
 
-# --- القسم 2: الحاسبة ---
+# --- الأقسام الأخرى ---
 elif choice == curr["menu"][1]:
-    st.subheader(curr["menu"][1])
+    st.subheader("🧮 حاسبة القياسات")
     watt = st.number_input("القدرة (Watt):", value=2000)
-    amp = watt / 220
-    st.success(f"التيار: {amp:.2f} A")
+    st.success(f"التيار: {watt/220:.2f} A")
 
-# --- القسم 3: الفاتورة ---
 elif choice == curr["menu"][2]:
     st.subheader("📄 نظام الفواتير")
-    with st.expander("➕ إضافة مواد"):
-        search = st.text_input("🔍 بحث:")
-        filtered = [k for k in DATABASE_PRO.keys() if search.lower() in k.lower()]
-        prod = st.selectbox("المادة:", filtered if filtered else list(DATABASE_PRO.keys()))
-        qte = st.number_input("الكمية:", min_value=1, value=1)
-        if st.button("إضافة ➕"):
-            st.session_state['cart'].append({"المادة": prod, "الكمية": qte, "الثمن": DATABASE_PRO[prod], "المجموع": qte * DATABASE_PRO[prod]})
-            st.rerun()
-
-    if st.session_state['cart']:
-        df = pd.DataFrame(st.session_state['cart'])
-        edited_df = st.data_editor(df, use_container_width=True)
-        st.markdown(f"### المجموع: {edited_df['المجموع'].sum():.3f} DT")
+    st.write("أضف المواد من القائمة")
