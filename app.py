@@ -3,18 +3,18 @@ import pandas as pd
 from datetime import datetime
 import requests
 
-# 1. إعدادات الصفحة
+# 1. إعدادات الصفحة (النسخة 8)
 st.set_page_config(page_title="منصة الكهربائي المحترف", page_icon="⚡", layout="wide")
 
-# 2. نظام اختيار اللغة
-lang_options = {"🇹🇳 تونسية": "تونس", "🇸🇦 فصحى": "الفصحى", "🇫🇷 Français": "Français", "🇺🇸 English": "English"}
+# 2. نظام اختيار اللغة (تونسية، فرنسية، إنجليزية فقط)
+lang_options = {"🇹🇳 تونسية": "تونس", "🇫🇷 Français": "Français", "🇺🇸 English": "English"}
 L_key = st.sidebar.selectbox("🌐 اللغة / Langue", list(lang_options.keys()))
 L = lang_options[L_key]
 
 # 3. جلب المفتاح السري للذكاء الاصطناعي
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
 
-# 4. قاموس النصوص (النسخة 8 الأصلية)
+# 4. قاموس النصوص (النسخة 8 الأصلية بدون فصحى)
 texts = {
     "تونس": {
         "title": "⚡ منصة الكهربائي المحترف",
@@ -23,14 +23,6 @@ texts = {
         "calc_label": "قوة الجهاز (Watt):",
         "invoice_header": "📄 إنشاء فاتورة تقديرية",
         "prompt": "أنت خبير كهرباء تونسي، أجب بالدارجة التونسية التقنية."
-    },
-    "الفصحى": {
-        "title": "⚡ منصة خبير الكهرباء العربي",
-        "menu": ["استشارة الخبير (AI)", "حاسبة القياسات", "تحرير فاتورة (Devis)"],
-        "ai_label": "وصف المشكلة الفنية:",
-        "calc_label": "القدرة الكهربائية (واط):",
-        "invoice_header": "📄 تحرير فاتورة جديدة",
-        "prompt": "أنت مستشار هندسة كهربائية، أجب باللغة العربية الفصحى."
     },
     "Français": {
         "title": "⚡ Pro Electric Platform",
@@ -61,7 +53,7 @@ choice = st.sidebar.radio("🛠️ الأدوات", texts[L]["menu"])
 if choice == texts[L]["menu"][0]:
     st.subheader(texts[L]["menu"][0])
     query = st.text_area(texts[L]["ai_label"], height=100)
-    if st.button("تحليل" if L in ["تونس", "الفصحى"] else "Analyze"):
+    if st.button("تحليل" if L == "تونس" else "Analyze"):
         if query and API_KEY:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
             payload = {"contents": [{"parts": [{"text": f"{texts[L]['prompt']} : {query}"}]}]}
@@ -76,19 +68,19 @@ if choice == texts[L]["menu"][0]:
 elif choice == texts[L]["menu"][1]:
     st.subheader(texts[L]["menu"][1])
     watt = st.number_input(texts[L]["calc_label"], value=2000)
-    if st.button("احسب" if L in ["تونس", "الفصحى"] else "Calculate"):
+    if st.button("احسب" if L == "تونس" else "Calculate"):
         amp = watt / 220
         wire = "1.5 مم²" if amp <= 11 else "2.5 مم²" if amp <= 17 else "4 مم²+"
         st.success(f"I = {amp:.2f} A | Cable: {wire}")
 
-# --- القسم الثالث: تحرير الفواتير (النسخة 8 الأصلية - يدوية) ---
+# --- القسم الثالث: تحرير الفواتير (يدوية بسيطة) ---
 elif choice == texts[L]["menu"][2]:
     st.subheader(texts[L]["invoice_header"])
     c_name = st.text_input("اسم الزبون / Client Name:")
     items = st.text_area("المواد والخدمات / Items & Services:")
     price = st.number_input("المبلغ الإجمالي (DT):", min_value=0.0)
     
-    if st.button("حفظ الفاتورة" if L in ["تونس", "الفصحى"] else "Save Invoice"):
+    if st.button("حفظ الفاتورة" if L == "تونس" else "Save Invoice"):
         invoice_content = f"""
         {texts[L]['title']}
         التاريخ: {datetime.now().strftime('%d/%m/%Y')}
