@@ -9,7 +9,7 @@ package.name = expertelectric
 # (str) Package domain (needed for android packaging)
 package.domain = org.expert
 
-# (str) Full name including the version (السطر اللي كان ناقص)
+# (str) Full name including the version
 version = 0.1
 
 # (str) Source code where the main.py is located
@@ -19,7 +19,6 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,ttf
 
 # (list) Application requirements
-# زدنا المكتبات متاع العربية هنا
 requirements = python3,kivy==2.3.0,android,hostpython3,arabic-reshaper,python-bidi
 
 # (str) Supported orientations
@@ -33,6 +32,13 @@ android.api = 33
 
 # (int) Minimum API support
 android.minapi = 21
+
+# (str) Android logcat filters to use
+android.logcat_filters = *:S python:D
+
+# (str) The directory where the Android resources are located
+# هذا السطر هو اللي باش يخلي أيقونات الـ mipmap تظهر
+android.res_dir = res
 
 # (bool) Use --private data storage
 android.private_storage = True
