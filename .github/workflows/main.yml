@@ -19,9 +19,11 @@ jobs:
       - name: Install Tools
         run: |
           sudo apt-get update
-          # نحينا libtinfo5 اللي عملت المشكلة وعوضناها بـ libncurses6
           sudo apt-get install -y build-essential libffi-dev zip unzip autoconf autogen libtool pkg-config zlib1g-dev libncurses6 libncursesw6 cmake libssl-dev patch
-          pip install buildozer kivy
+          # المرة هذه صبينا Cython و wheel باش الماكينة ما عادش تحبس
+          pip install --upgrade pip
+          pip install wheel
+          pip install "Cython<3.0" buildozer kivy 
 
       - name: Build APK with Buildozer
         run: yes | buildozer android debug
