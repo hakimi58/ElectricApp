@@ -33,13 +33,6 @@ android.api = 33
 # (int) Minimum API support
 android.minapi = 21
 
-# (str) Android logcat filters to use
-android.logcat_filters = *:S python:D
-
-# (str) The directory where the Android resources are located
-# هذا السطر هو اللي باش يخلي أيقونات الـ mipmap تظهر
-android.res_dir = res
-
 # (bool) Use --private data storage
 android.private_storage = True
 
