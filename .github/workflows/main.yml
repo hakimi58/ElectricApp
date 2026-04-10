@@ -21,7 +21,8 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libffi-dev zip unzip autoconf autogen libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libssl-dev patch setxkbmap libx11-dev
+          # نحينا setxkbmap و libx11-dev اللي عملوا مشاكل
+          sudo apt-get install -y build-essential libffi-dev zip unzip autoconf autogen libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libssl-dev patch
           pip install --upgrade pip
           pip install wheel "Cython<3.0" buildozer kivy
 
@@ -29,7 +30,7 @@ jobs:
         run: |
           export JAVA_HOME=$JAVA_HOME_17_X64
           export PATH=$JAVA_HOME/bin:$PATH
-          # تنظيف المحاولات الفاشلة السابقة
+          # تنظيف أي محاولة فاشلة
           rm -rf .buildozer/android/platform/build-arm64-v8a/dists
           yes | buildozer android debug
 
