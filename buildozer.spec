@@ -24,9 +24,6 @@ requirements = python3,kivy==2.3.0,android,hostpython3,arabic-reshaper,python-bi
 # (str) Supported orientations
 orientation = portrait
 
-# (list) Permissions
-android.permissions = INTERNET
-
 # (int) Target Android API
 android.api = 33
 
@@ -34,19 +31,13 @@ android.api = 33
 android.minapi = 21
 
 # (str) The directory where the Android resources are located
-# بما أن المجلدات موجودة البرة، نحطو نقطة "." يعني المجلد الحالي
-android.res_dir = .
+# التعديل الأهم هنا
+android.res_dir = res
 
 # (bool) Use --private data storage
 android.private_storage = True
 
 [buildozer]
-
-# (int) Log level (0 = error only, 1 = info, 2 = debug)
 log_level = 2
-
-# (int) Display warning if buildozer is run as root
 warn_on_root = 1
-
-# (str) Path to build artifacts
 bin_dir = ./bin
