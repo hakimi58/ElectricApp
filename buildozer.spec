@@ -6,7 +6,7 @@ title = Expert Electric
 # (str) Package name
 package.name = expertelectric
 
-# (str) Package domain (needed for android packaging)
+# (str) Package domain
 package.domain = org.expert
 
 # (str) Full name including the version
@@ -32,6 +32,10 @@ android.api = 33
 
 # (int) Minimum API support
 android.minapi = 21
+
+# (str) The directory where the Android resources are located
+# بما أن المجلدات موجودة البرة، نحطو نقطة "." يعني المجلد الحالي
+android.res_dir = .
 
 # (bool) Use --private data storage
 android.private_storage = True
