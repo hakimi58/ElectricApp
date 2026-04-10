@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-22.04  # رجعنا للنسخة الأكثر استقراراً
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       
@@ -17,13 +17,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libffi-dev zip unzip autoconf autogen libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libssl-dev patch
           pip install --upgrade pip
-          pip install "Cython<3.0" wheel buildozer kivy
+          pip install wheel "Cython<3.0" buildozer kivy
 
       - name: Build APK with Buildozer
-        # زدت السطر هذا باش ينظف أي محاولة قديمة فاشلة
-        run: |
-          buildozer android clean
-          yes | buildozer android debug
+        # نحينا سطر الـ clean اللي عمل المشكلة
+        run: yes | buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
